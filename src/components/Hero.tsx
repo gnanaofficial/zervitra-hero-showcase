@@ -17,7 +17,7 @@ const Hero = () => {
             </span>
           </div>
           <h2 className="text-4xl md:text-6xl lg:text-7xl font-bold text-foreground mt-2 leading-tight">
-            IDEA'S EXCELLENCE
+            IDEAS EXCELLENCE
           </h2>
         </div>
 
