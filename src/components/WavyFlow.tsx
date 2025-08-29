@@ -42,8 +42,10 @@ const WavyFlow = () => {
             className={`absolute left-1/2 transform -translate-x-1/2 w-0.5 h-full 
                        bg-gradient-to-b from-transparent via-primary/40 via-success/60 to-transparent 
                        transition-all duration-1500 ease-out ${
-              isVisible ? "opacity-100 scale-y-100" : "opacity-0 scale-y-0"
-            }`}
+                         isVisible
+                           ? "opacity-100 scale-y-100"
+                           : "opacity-0 scale-y-0"
+                       }`}
             style={{ transformOrigin: "center top" }}
           >
             <div className="absolute inset-0 w-full bg-gradient-to-b from-primary/20 to-success/20 blur-sm"></div>
@@ -52,14 +54,16 @@ const WavyFlow = () => {
           {/* Cards with Nodes - Desktop Grid Layout */}
           <div className="relative grid grid-cols-1 gap-16 pt-16 pb-16">
             {/* Research Card - Left */}
-            <div className="relative flex items-center justify-between">
+            <div className="relative flex items-center justify-between pl-60">
               {/* Enhanced Glowing Node */}
               <div
                 className={`absolute left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full 
                            bg-gradient-to-r from-success to-success/80 z-30 
                            shadow-lg shadow-success/60 transition-all duration-1200 ease-out ${
-                  showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
-                }`}
+                             showCards
+                               ? "opacity-100 scale-100"
+                               : "opacity-0 scale-0"
+                           }`}
                 style={{ animationDelay: "0.2s" }}
               >
                 <div className="absolute inset-0 rounded-full bg-success animate-ping opacity-75"></div>
@@ -81,13 +85,15 @@ const WavyFlow = () => {
             </div>
 
             {/* Analysis Card - Right */}
-            <div className="relative flex items-center justify-between">
+            <div className="relative flex items-center justify-between pr-60">
               <div
                 className={`absolute left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full 
                            bg-gradient-to-r from-success to-success/80 z-30 
                            shadow-lg shadow-success/60 transition-all duration-1200 ease-out ${
-                  showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
-                }`}
+                             showCards
+                               ? "opacity-100 scale-100"
+                               : "opacity-0 scale-0"
+                           }`}
                 style={{ animationDelay: "0.5s" }}
               >
                 <div className="absolute inset-0 rounded-full bg-success animate-ping opacity-75"></div>
@@ -109,13 +115,15 @@ const WavyFlow = () => {
             </div>
 
             {/* Design Card - Left */}
-            <div className="relative flex items-center justify-between">
+            <div className="relative flex items-center justify-between pl-60">
               <div
                 className={`absolute left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full 
                            bg-gradient-to-r from-success to-success/80 z-30 
                            shadow-lg shadow-success/60 transition-all duration-1200 ease-out ${
-                  showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
-                }`}
+                             showCards
+                               ? "opacity-100 scale-100"
+                               : "opacity-0 scale-0"
+                           }`}
                 style={{ animationDelay: "0.8s" }}
               >
                 <div className="absolute inset-0 rounded-full bg-success animate-ping opacity-75"></div>
@@ -137,13 +145,15 @@ const WavyFlow = () => {
             </div>
 
             {/* Develop Card - Right */}
-            <div className="relative flex items-center justify-between">
+            <div className="relative flex items-center justify-between pr-60">
               <div
                 className={`absolute left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full 
                            bg-gradient-to-r from-success to-success/80 z-30 
                            shadow-lg shadow-success/60 transition-all duration-1200 ease-out ${
-                  showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
-                }`}
+                             showCards
+                               ? "opacity-100 scale-100"
+                               : "opacity-0 scale-0"
+                           }`}
                 style={{ animationDelay: "1.1s" }}
               >
                 <div className="absolute inset-0 rounded-full bg-success animate-ping opacity-75"></div>
@@ -165,13 +175,15 @@ const WavyFlow = () => {
             </div>
 
             {/* Strategy Card - Left */}
-            <div className="relative flex items-center justify-between">
+            <div className="relative flex items-center justify-between pl-60">
               <div
                 className={`absolute left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full 
                            bg-gradient-to-r from-success to-success/80 z-30 
                            shadow-lg shadow-success/60 transition-all duration-1200 ease-out ${
-                  showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
-                }`}
+                             showCards
+                               ? "opacity-100 scale-100"
+                               : "opacity-0 scale-0"
+                           }`}
                 style={{ animationDelay: "1.4s" }}
               >
                 <div className="absolute inset-0 rounded-full bg-success animate-ping opacity-75"></div>
@@ -201,8 +213,10 @@ const WavyFlow = () => {
             className={`absolute left-1/2 transform -translate-x-1/2 w-0.5 h-full 
                        bg-gradient-to-b from-transparent via-primary/30 via-success/50 to-transparent 
                        transition-all duration-1500 ease-out ${
-              isVisible ? "opacity-100 scale-y-100" : "opacity-0 scale-y-0"
-            }`}
+                         isVisible
+                           ? "opacity-100 scale-y-100"
+                           : "opacity-0 scale-y-0"
+                       }`}
             style={{ transformOrigin: "center top" }}
           >
             <div className="absolute inset-0 w-full bg-gradient-to-b from-primary/10 to-success/10 blur-sm"></div>
