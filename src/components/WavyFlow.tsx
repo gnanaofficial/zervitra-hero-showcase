@@ -30,271 +30,272 @@ const WavyFlow = () => {
   return (
     <section
       ref={sectionRef}
-      className="relative w-full py-20 lg:py-32 overflow-hidden bg-gradient-to-b from-background via-background/95 to-background/90"
+      className="relative w-full py-20 lg:py-32 overflow-hidden 
+                 bg-gradient-to-b from-background via-background/98 to-background/95
+                 border-t border-border/20"
     >
-      <div className="max-w-7xl mx-auto px-6">
-        {/* Desktop Vertical Line */}
-        <div className="hidden lg:block relative h-[800px]">
-          {/* Vertical Line with gradient - initially hidden */}
+      <div className="max-w-7xl mx-auto px-4 lg:px-8">
+        {/* Desktop Layout */}
+        <div className="hidden lg:block relative min-h-[1000px]">
+          {/* Enhanced Vertical Line with gradient */}
           <div
-            className={`absolute left-1/2 transform -translate-x-1/2 w-1 h-full bg-gradient-to-b from-border/40 via-primary/60 via-success/70 to-border/40 transition-all duration-1000 ${
+            className={`absolute left-1/2 transform -translate-x-1/2 w-0.5 h-full 
+                       bg-gradient-to-b from-transparent via-primary/40 via-success/60 to-transparent 
+                       transition-all duration-1500 ease-out ${
               isVisible ? "opacity-100 scale-y-100" : "opacity-0 scale-y-0"
             }`}
             style={{ transformOrigin: "center top" }}
-          ></div>
+          >
+            <div className="absolute inset-0 w-full bg-gradient-to-b from-primary/20 to-success/20 blur-sm"></div>
+          </div>
 
-          {/* Cards with Nodes - Desktop */}
-          <div className="relative flex flex-col items-center space-y-24 pt-12">
-            {/* Research Card 1 - Left */}
-            <div className="relative flex items-center pr-80">
+          {/* Cards with Nodes - Desktop Grid Layout */}
+          <div className="relative grid grid-cols-1 gap-16 pt-16 pb-16">
+            {/* Research Card - Left */}
+            <div className="relative flex items-center justify-between">
+              {/* Enhanced Glowing Node */}
               <div
-                className={`absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-success animate-pulse z-10 shadow-lg shadow-success/50 transition-all duration-1000 ${
+                className={`absolute left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full 
+                           bg-gradient-to-r from-success to-success/80 z-30 
+                           shadow-lg shadow-success/60 transition-all duration-1200 ease-out ${
                   showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
                 }`}
                 style={{ animationDelay: "0.2s" }}
-              ></div>
+              >
+                <div className="absolute inset-0 rounded-full bg-success animate-ping opacity-75"></div>
+              </div>
               <div
-                className={`mr-auto pr-4 w-72 transition-all duration-1000 ${
+                className={`w-full flex justify-start transition-all duration-1200 ease-out ${
                   showCards
                     ? "opacity-100 translate-x-0"
-                    : "opacity-0 -translate-x-20"
+                    : "opacity-0 -translate-x-32"
                 }`}
-                style={{ animationDelay: "0.2s" }}
+                style={{ animationDelay: "0.4s" }}
               >
                 <FloatingCard
                   title="Research"
                   icon="research"
-                  className="relative"
+                  className="animate-slide-in-left"
                 />
               </div>
             </div>
 
             {/* Analysis Card - Right */}
-            <div className="relative flex items-center pl-80">
+            <div className="relative flex items-center justify-between">
               <div
-                className={`absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-success animate-pulse z-10 shadow-lg shadow-success/50 transition-all duration-1000 ${
+                className={`absolute left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full 
+                           bg-gradient-to-r from-success to-success/80 z-30 
+                           shadow-lg shadow-success/60 transition-all duration-1200 ease-out ${
                   showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
                 }`}
                 style={{ animationDelay: "0.5s" }}
-              ></div>
+              >
+                <div className="absolute inset-0 rounded-full bg-success animate-ping opacity-75"></div>
+              </div>
               <div
-                className={`ml-auto pl-4 w-72 transition-all duration-1000 ${
+                className={`w-full flex justify-end transition-all duration-1200 ease-out ${
                   showCards
                     ? "opacity-100 translate-x-0"
-                    : "opacity-0 translate-x-20"
+                    : "opacity-0 translate-x-32"
                 }`}
-                style={{ animationDelay: "0.4s" }}
+                style={{ animationDelay: "0.7s" }}
               >
                 <FloatingCard
                   title="Analysis"
                   icon="research"
-                  className="relative"
+                  className="animate-slide-in-right"
                 />
               </div>
             </div>
 
             {/* Design Card - Left */}
-            <div className="relative flex pr-80">
+            <div className="relative flex items-center justify-between">
               <div
-                className={`absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-success animate-pulse z-10 shadow-lg shadow-success/50 transition-all duration-1000 ${
+                className={`absolute left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full 
+                           bg-gradient-to-r from-success to-success/80 z-30 
+                           shadow-lg shadow-success/60 transition-all duration-1200 ease-out ${
                   showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
                 }`}
-                style={{ animationDelay: "1s" }}
-              ></div>
+                style={{ animationDelay: "0.8s" }}
+              >
+                <div className="absolute inset-0 rounded-full bg-success animate-ping opacity-75"></div>
+              </div>
               <div
-                className={`mr-auto pr-4 w-72 transition-all duration-1000 ${
+                className={`w-full flex justify-start transition-all duration-1200 ease-out ${
                   showCards
                     ? "opacity-100 translate-x-0"
-                    : "opacity-0 -translate-x-20"
+                    : "opacity-0 -translate-x-32"
                 }`}
-                style={{ animationDelay: "0.6s" }}
+                style={{ animationDelay: "1s" }}
               >
                 <FloatingCard
                   title="Design"
                   icon="design"
-                  className="relative"
+                  className="animate-slide-in-left"
                 />
               </div>
             </div>
 
             {/* Develop Card - Right */}
-            <div className="relative flex items-center w-full">
+            <div className="relative flex items-center justify-between">
               <div
-                className={`absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-success animate-pulse z-10 shadow-lg shadow-success/50 transition-all duration-1000 ${
+                className={`absolute left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full 
+                           bg-gradient-to-r from-success to-success/80 z-30 
+                           shadow-lg shadow-success/60 transition-all duration-1200 ease-out ${
                   showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
                 }`}
-                style={{ animationDelay: "1.5s" }}
-              ></div>
+                style={{ animationDelay: "1.1s" }}
+              >
+                <div className="absolute inset-0 rounded-full bg-success animate-ping opacity-75"></div>
+              </div>
               <div
-                className={`ml-auto pl-4 w-72 transition-all duration-1000 ${
+                className={`w-full flex justify-end transition-all duration-1200 ease-out ${
                   showCards
                     ? "opacity-100 translate-x-0"
-                    : "opacity-0 translate-x-20"
+                    : "opacity-0 translate-x-32"
                 }`}
-                style={{ animationDelay: "0.8s" }}
+                style={{ animationDelay: "1.3s" }}
               >
                 <FloatingCard
                   title="Develop"
                   icon="develop"
-                  className="relative"
+                  className="animate-slide-in-right"
                 />
               </div>
             </div>
 
-            {/* Strategy Card - Left (5th card) */}
-            <div className="relative flex items-center w-full">
+            {/* Strategy Card - Left */}
+            <div className="relative flex items-center justify-between">
               <div
-                className={`absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-success animate-pulse z-10 shadow-lg shadow-success/50 transition-all duration-1000 ${
+                className={`absolute left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full 
+                           bg-gradient-to-r from-success to-success/80 z-30 
+                           shadow-lg shadow-success/60 transition-all duration-1200 ease-out ${
                   showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
                 }`}
-                style={{ animationDelay: "2s" }}
-              ></div>
+                style={{ animationDelay: "1.4s" }}
+              >
+                <div className="absolute inset-0 rounded-full bg-success animate-ping opacity-75"></div>
+              </div>
               <div
-                className={`mr-auto pr-4 w-72 transition-all duration-1000 ${
+                className={`w-full flex justify-start transition-all duration-1200 ease-out ${
                   showCards
                     ? "opacity-100 translate-x-0"
-                    : "opacity-0 -translate-x-20"
+                    : "opacity-0 -translate-x-32"
                 }`}
-                style={{ animationDelay: "1s" }}
+                style={{ animationDelay: "1.6s" }}
               >
                 <FloatingCard
                   title="Strategy"
                   icon="strategy"
-                  className="relative"
+                  className="animate-slide-in-left"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Mobile Vertical Line */}
-        <div className="lg:hidden relative flex flex-col items-center space-y-12 min-h-[800px]">
-          {/* Vertical Line with gradient - initially hidden */}
+        {/* Mobile Layout - No Dots */}
+        <div className="lg:hidden relative flex flex-col items-center space-y-12 min-h-[900px]">
+          {/* Enhanced Mobile Vertical Line without dots */}
           <div
-            className={`absolute left-1/2 transform -translate-x-1/2 w-1 h-full bg-gradient-to-b from-border/40 via-primary/60 via-success/70 to-border/40 transition-all duration-1000 ${
+            className={`absolute left-1/2 transform -translate-x-1/2 w-0.5 h-full 
+                       bg-gradient-to-b from-transparent via-primary/30 via-success/50 to-transparent 
+                       transition-all duration-1500 ease-out ${
               isVisible ? "opacity-100 scale-y-100" : "opacity-0 scale-y-0"
             }`}
             style={{ transformOrigin: "center top" }}
-          ></div>
+          >
+            <div className="absolute inset-0 w-full bg-gradient-to-b from-primary/10 to-success/10 blur-sm"></div>
+          </div>
 
-          {/* Cards with Nodes - Mobile */}
-          <div className="relative flex flex-col items-center space-y-12 pt-8">
-            {/* Research Card 1 - Left */}
+          {/* Cards - Mobile Timeline */}
+          <div className="relative flex flex-col items-center space-y-16 pt-12 pb-12 w-full max-w-md">
+            {/* Research Card - Mobile Left */}
             <div className="relative flex items-center w-full">
               <div
-                className={`absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-success animate-pulse z-10 shadow-lg shadow-success/50 transition-all duration-1000 ${
-                  showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
-                }`}
-                style={{ animationDelay: "0.2s" }}
-              ></div>
-              <div
-                className={`mr-auto pr-4 w-72 transition-all duration-1000 ${
+                className={`w-full flex justify-center transition-all duration-1000 ease-out ${
                   showCards
-                    ? "opacity-100 translate-x-0"
-                    : "opacity-0 -translate-x-20"
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-10"
                 }`}
                 style={{ animationDelay: "0.2s" }}
               >
                 <FloatingCard
                   title="Research"
                   icon="research"
-                  className="relative"
+                  className="animate-fade-in-up"
                 />
               </div>
             </div>
 
-            {/* Analysis Card - Right */}
+            {/* Analysis Card - Mobile Center */}
             <div className="relative flex items-center w-full">
               <div
-                className={`absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-success animate-pulse z-10 shadow-lg shadow-success/50 transition-all duration-1000 ${
-                  showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
-                }`}
-                style={{ animationDelay: "0.5s" }}
-              ></div>
-              <div
-                className={`ml-auto pl-4 w-72 transition-all duration-1000 ${
+                className={`w-full flex justify-center transition-all duration-1000 ease-out ${
                   showCards
-                    ? "opacity-100 translate-x-0"
-                    : "opacity-0 translate-x-20"
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-10"
                 }`}
                 style={{ animationDelay: "0.4s" }}
               >
                 <FloatingCard
                   title="Analysis"
                   icon="research"
-                  className="relative"
+                  className="animate-fade-in-up"
                 />
               </div>
             </div>
 
-            {/* Design Card - Left */}
+            {/* Design Card - Mobile Center */}
             <div className="relative flex items-center w-full">
               <div
-                className={`absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-success animate-pulse z-10 shadow-lg shadow-success/50 transition-all duration-1000 ${
-                  showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
-                }`}
-                style={{ animationDelay: "1s" }}
-              ></div>
-              <div
-                className={`mr-auto pr-4 w-72 transition-all duration-1000 ${
+                className={`w-full flex justify-center transition-all duration-1000 ease-out ${
                   showCards
-                    ? "opacity-100 translate-x-0"
-                    : "opacity-0 -translate-x-20"
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-10"
                 }`}
                 style={{ animationDelay: "0.6s" }}
               >
                 <FloatingCard
                   title="Design"
                   icon="design"
-                  className="relative"
+                  className="animate-fade-in-up"
                 />
               </div>
             </div>
 
-            {/* Develop Card - Right */}
+            {/* Develop Card - Mobile Center */}
             <div className="relative flex items-center w-full">
               <div
-                className={`absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-success animate-pulse z-10 shadow-lg shadow-success/50 transition-all duration-1000 ${
-                  showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
-                }`}
-                style={{ animationDelay: "1.5s" }}
-              ></div>
-              <div
-                className={`ml-auto pl-4 w-72 transition-all duration-1000 ${
+                className={`w-full flex justify-center transition-all duration-1000 ease-out ${
                   showCards
-                    ? "opacity-100 translate-x-0"
-                    : "opacity-0 translate-x-20"
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-10"
                 }`}
                 style={{ animationDelay: "0.8s" }}
               >
                 <FloatingCard
                   title="Develop"
                   icon="develop"
-                  className="relative"
+                  className="animate-fade-in-up"
                 />
               </div>
             </div>
 
-            {/* Strategy Card - Left (5th card) */}
+            {/* Strategy Card - Mobile Center */}
             <div className="relative flex items-center w-full">
               <div
-                className={`absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-success animate-pulse z-10 shadow-lg shadow-success/50 transition-all duration-1000 ${
-                  showCards ? "opacity-100 scale-100" : "opacity-0 scale-0"
-                }`}
-                style={{ animationDelay: "2s" }}
-              ></div>
-              <div
-                className={`mr-auto pr-4 w-72 transition-all duration-1000 ${
+                className={`w-full flex justify-center transition-all duration-1000 ease-out ${
                   showCards
-                    ? "opacity-100 translate-x-0"
-                    : "opacity-0 -translate-x-20"
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-10"
                 }`}
                 style={{ animationDelay: "1s" }}
               >
                 <FloatingCard
                   title="Strategy"
                   icon="strategy"
-                  className="relative"
+                  className="animate-fade-in-up"
                 />
               </div>
             </div>
