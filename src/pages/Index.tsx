@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
+import Analytics from "@/components/Analytics";
 import WavyFlow from "@/components/WavyFlow";
 
 const Index = () => {
@@ -13,11 +14,14 @@ const Index = () => {
         <div className="flex-1 flex flex-col justify-center">
           <Hero />
         </div>
+      </div>
 
-        {/* Wavy Flow Section - Integrated into hero */}
-        <div className="flex-shrink-0">
-          <WavyFlow />
-        </div>
+      {/* Analytics Section */}
+      <Analytics />
+
+      {/* Wavy Flow Section */}
+      <div className="relative">
+        <WavyFlow />
       </div>
     </div>
   );
