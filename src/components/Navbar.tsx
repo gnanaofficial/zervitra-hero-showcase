@@ -1,47 +1,103 @@
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { scroller } from "react-scroll";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const navLinks = ["HOME", "SERVICES", "CASE STUDY", "ABOUT", "CONTACT"];
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const navItems = [
+    { label: "HOME", path: "/" },
+    { label: "SERVICES", action: "scroll" },
+    { label: "PRICING", path: "/pricing" },
+    { label: "ABOUT", path: "/about" },
+    { label: "CONTACT", path: "/contact" }
+  ];
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleNavigation = (item: typeof navItems[0]) => {
+    setIsMenuOpen(false);
+    
+    if (item.action === "scroll") {
+      if (location.pathname !== "/") {
+        navigate("/#services");
+      } else {
+        scroller.scrollTo("services", {
+          duration: 800,
+          delay: 0,
+          smooth: "easeInOutQuart",
+          offset: -100
+        });
+      }
+    } else if (item.path) {
+      navigate(item.path);
+    }
+  };
+
+  const handleLogoClick = () => {
+    navigate("/");
+    setIsMenuOpen(false);
+  };
+
+  const handleAuthAction = () => {
+    if (user) {
+      navigate("/dashboard");
+    } else {
+      navigate("/login");
+    }
+    setIsMenuOpen(false);
   };
 
   return (
     <nav className="w-full px-6 py-4 lg:px-8 fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/20">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
         {/* Logo - Left side */}
-        <div className="flex items-center">
+        <div className="flex items-center cursor-pointer" onClick={handleLogoClick}>
           <img
             src="/src/Resources/logo/zervimain.svg"
             alt="Zervitra Logo"
-            className="h-8 w-auto sm:h-10 md:h-12 lg:h-14"
+            className="h-8 w-auto sm:h-10 md:h-12 lg:h-14 transition-transform hover:scale-105"
           />
         </div>
 
         {/* Navigation Links - Hidden on mobile */}
         <div className="hidden md:flex items-center space-x-8">
-          {navLinks.map((link) => (
-            <a
-              key={link}
-              href="#"
-              className="text-nav-text hover:text-foreground transition-colors duration-300 text-sm font-medium"
+          {navItems.map((item) => (
+            <button
+              key={item.label}
+              onClick={() => handleNavigation(item)}
+              className="text-nav-text hover:text-foreground transition-colors duration-300 text-sm font-medium cursor-pointer"
             >
-              {link}
-            </a>
+              {item.label}
+            </button>
           ))}
         </div>
 
-        {/* Login Button - Hidden on mobile */}
-        <div className="hidden md:block">
+        {/* Auth Button - Hidden on mobile */}
+        <div className="hidden md:flex items-center space-x-4">
+          {user && (
+            <Button
+              variant="ghost"
+              onClick={signOut}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Sign Out
+            </Button>
+          )}
           <Button
             variant="outline"
+            onClick={handleAuthAction}
             className="rounded-full border-2 border-primary/30 text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300"
           >
-            Login
+            {user ? "Dashboard" : "Login"}
           </Button>
         </div>
 
@@ -66,22 +122,31 @@ const Navbar = () => {
       {isMenuOpen && (
         <div className="md:hidden absolute top-full left-0 right-0 bg-background/95 backdrop-blur-md border-b border-border/20">
           <div className="px-6 py-4 space-y-4">
-            {navLinks.map((link) => (
-              <a
-                key={link}
-                href="#"
-                className="block text-nav-text hover:text-foreground transition-colors duration-300 text-base font-medium py-2"
-                onClick={() => setIsMenuOpen(false)}
+            {navItems.map((item) => (
+              <button
+                key={item.label}
+                onClick={() => handleNavigation(item)}
+                className="block w-full text-left text-nav-text hover:text-foreground transition-colors duration-300 text-base font-medium py-2"
               >
-                {link}
-              </a>
+                {item.label}
+              </button>
             ))}
-            <div className="pt-4 border-t border-border/20">
+            <div className="pt-4 border-t border-border/20 space-y-2">
+              {user && (
+                <Button
+                  variant="ghost"
+                  onClick={signOut}
+                  className="w-full text-muted-foreground hover:text-foreground"
+                >
+                  Sign Out
+                </Button>
+              )}
               <Button
                 variant="outline"
+                onClick={handleAuthAction}
                 className="w-full rounded-full border-2 border-primary/30 text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300"
               >
-                Login
+                {user ? "Dashboard" : "Login"}
               </Button>
             </div>
           </div>
