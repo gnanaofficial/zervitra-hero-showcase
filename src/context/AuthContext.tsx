@@ -33,89 +33,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             description: "You have been logged out."
           });
         }
-        
-        // Handle token errors by clearing storage
-        if (event === 'TOKEN_REFRESHED' && !session) {
-          localStorage.clear();
-        }
       }
     );
 
-    // THEN check for existing session with error handling
-    supabase.auth.getSession()
-      .then(({ data: { session }, error }) => {
-        if (error) {
-          console.error('Session recovery failed:', error);
-          // Clear any stale tokens
-          localStorage.clear();
-          setSession(null);
-          setUser(null);
-        } else {
-          setSession(session);
-          setUser(session?.user ?? null);
-        }
-      })
-      .catch((err) => {
-        console.error('Unexpected auth error:', err);
-        localStorage.clear();
-        setSession(null);
-        setUser(null);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
     return () => subscription.unsubscribe();
   }, [toast]);
 
   const signIn = async (email: string, password: string) => {
-    try {
-      // Clear any stale tokens before attempting login
-      await supabase.auth.signOut();
-      
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
 
-      if (error) {
-        // Handle specific error cases
-        if (error.status === 400 || error.message.includes('Invalid')) {
-          toast({
-            title: "Invalid credentials",
-            description: "Invalid email or password. Please try again.",
-            variant: "destructive"
-          });
-        } else if (error.status === 404) {
-          toast({
-            title: "Server not reachable",
-            description: "Unable to connect to authentication server.",
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Login failed",
-            description: error.message,
-            variant: "destructive"
-          });
-        }
-      } else {
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully logged in."
-        });
-      }
-
-      return { error };
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+    if (error) {
       toast({
-        title: "Login error",
-        description: errorMessage,
+        title: "Login failed",
+        description: error.message,
         variant: "destructive"
       });
-      return { error: err };
+    } else {
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully logged in."
+      });
     }
+
+    return { error };
   };
 
   const signOut = async () => {

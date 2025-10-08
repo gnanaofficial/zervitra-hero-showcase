@@ -24,14 +24,13 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      await signIn(email, password);
+    const { error } = await signIn(email, password);
+    
+    if (!error) {
       // Redirect handled by auth context
-    } catch (err) {
-      console.error('Login error:', err);
-    } finally {
-      setLoading(false);
     }
+    
+    setLoading(false);
   };
 
   return (
