@@ -37,6 +37,9 @@ export const useDashboardData = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [allQuotations, setAllQuotations] = useState<Quotation[]>([]);
+  const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,7 +53,6 @@ export const useDashboardData = () => {
       setLoading(true);
       setError(null);
 
-      // First, get or create client record for the user
       let { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('id')
@@ -58,7 +60,6 @@ export const useDashboardData = () => {
         .single();
 
       if (clientError && clientError.code === 'PGRST116') {
-        // No client found, create one
         const { data: newClient, error: createError } = await supabase
           .from('clients')
           .insert({
@@ -83,7 +84,6 @@ export const useDashboardData = () => {
 
       const clientId = clientData.id;
 
-      // Fetch projects
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('*')
@@ -91,13 +91,19 @@ export const useDashboardData = () => {
         .order('created_at', { ascending: false })
         .limit(5);
 
+      const { data: allProjectsData, error: allProjectsError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+
       if (projectsError) {
         console.error('Error fetching projects:', projectsError);
       } else {
         setProjects(projectsData || []);
+        setAllProjects(allProjectsData || []);
       }
 
-      // Fetch quotations
       const { data: quotationsData, error: quotationsError } = await supabase
         .from('quotations')
         .select(`
@@ -108,13 +114,22 @@ export const useDashboardData = () => {
         .order('created_at', { ascending: false })
         .limit(5);
 
+      const { data: allQuotationsData, error: allQuotationsError } = await supabase
+        .from('quotations')
+        .select(`
+          *,
+          projects(title)
+        `)
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+
       if (quotationsError) {
         console.error('Error fetching quotations:', quotationsError);
       } else {
         setQuotations(quotationsData || []);
+        setAllQuotations(allQuotationsData || []);
       }
 
-      // Fetch invoices
       const { data: invoicesData, error: invoicesError } = await supabase
         .from('invoices')
         .select(`
@@ -125,10 +140,20 @@ export const useDashboardData = () => {
         .order('created_at', { ascending: false })
         .limit(5);
 
+      const { data: allInvoicesData, error: allInvoicesError } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          projects(title)
+        `)
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+
       if (invoicesError) {
         console.error('Error fetching invoices:', invoicesError);
       } else {
         setInvoices(invoicesData || []);
+        setAllInvoices(allInvoicesData || []);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -164,6 +189,9 @@ export const useDashboardData = () => {
     projects,
     quotations,
     invoices,
+    allProjects,
+    allQuotations,
+    allInvoices,
     overview,
     refreshData
   };

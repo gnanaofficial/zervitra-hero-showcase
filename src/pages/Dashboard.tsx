@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
@@ -8,11 +9,11 @@ import PaymentButton from "@/components/PaymentButton";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { formatCurrency } from "@/lib/payments";
 import { format } from "date-fns";
-import { 
-  FolderOpen, 
-  FileText, 
-  CreditCard, 
-  TrendingUp, 
+import {
+  FolderOpen,
+  FileText,
+  CreditCard,
+  TrendingUp,
   Calendar,
   MessageCircle,
   Download,
@@ -21,10 +22,26 @@ import {
   Clock,
   CheckCircle
 } from "lucide-react";
+import { ExpandButton } from "@/components/dashboard/ExpandButton";
+import { ExpandedViewContainer } from "@/components/dashboard/ExpandedViewContainer";
+import { ExpandedProjectsTable } from "@/components/dashboard/ExpandedProjectsTable";
+import { ExpandedQuotationsTable } from "@/components/dashboard/ExpandedQuotationsTable";
+import { ExpandedInvoicesTable } from "@/components/dashboard/ExpandedInvoicesTable";
+import {
+  exportProjectsToCSV,
+  exportProjectsToPDF,
+  exportQuotationsToCSV,
+  exportQuotationsToPDF,
+  exportInvoicesToCSV,
+  exportInvoicesToPDF,
+} from "@/lib/exportUtils";
+
+type ExpandedView = "projects" | "quotations" | "invoices" | null;
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { loading, error, projects, quotations, invoices, overview, refreshData } = useDashboardData();
+  const { loading, error, projects, quotations, invoices, allProjects, allQuotations, allInvoices, overview, refreshData } = useDashboardData();
+  const [expandedView, setExpandedView] = useState<ExpandedView>(null);
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -146,13 +163,15 @@ const Dashboard = () => {
                 className="premium-glass rounded-3xl p-6 border border-white/10"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10
                                   flex items-center justify-center">
                     <FolderOpen className="w-6 h-6 text-primary" />
                   </div>
-                  <Button variant="ghost" size="sm">
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
+                  <ExpandButton
+                    onClick={() => setExpandedView("projects")}
+                    iconOnly
+                    expanded={expandedView === "projects"}
+                  />
                 </div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-foreground">Projects</h3>
@@ -174,13 +193,15 @@ const Dashboard = () => {
                 className="premium-glass rounded-3xl p-6 border border-white/10"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10
                                   flex items-center justify-center">
                     <FileText className="w-6 h-6 text-primary" />
                   </div>
-                  <Button variant="ghost" size="sm">
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
+                  <ExpandButton
+                    onClick={() => setExpandedView("quotations")}
+                    iconOnly
+                    expanded={expandedView === "quotations"}
+                  />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">Quotations</h3>
                 <div className="text-3xl font-bold text-foreground mb-2">{overview.totalQuotations}</div>
@@ -197,13 +218,15 @@ const Dashboard = () => {
                 className="premium-glass rounded-3xl p-6 border border-white/10"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10
                                   flex items-center justify-center">
                     <CreditCard className="w-6 h-6 text-primary" />
                   </div>
-                  <Button variant="ghost" size="sm">
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
+                  <ExpandButton
+                    onClick={() => setExpandedView("invoices")}
+                    iconOnly
+                    expanded={expandedView === "invoices"}
+                  />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">Invoices</h3>
                 <div className="text-3xl font-bold text-foreground mb-2">{formatCurrency(overview.totalPaid)}</div>
@@ -403,6 +426,47 @@ const Dashboard = () => {
             </div>
           </motion.div>
         </section>
+
+        {/* Expanded Views */}
+        <ExpandedViewContainer
+          isOpen={expandedView === "projects"}
+          onClose={() => setExpandedView(null)}
+          title="All Projects"
+          description="View and manage all your projects with filtering and export options."
+        >
+          <ExpandedProjectsTable
+            projects={allProjects}
+            onExportCSV={() => exportProjectsToCSV(allProjects)}
+            onExportPDF={() => exportProjectsToPDF(allProjects)}
+          />
+        </ExpandedViewContainer>
+
+        <ExpandedViewContainer
+          isOpen={expandedView === "quotations"}
+          onClose={() => setExpandedView(null)}
+          title="All Quotations"
+          description="View and manage all your quotations with filtering and export options."
+        >
+          <ExpandedQuotationsTable
+            quotations={allQuotations}
+            onExportCSV={() => exportQuotationsToCSV(allQuotations)}
+            onExportPDF={() => exportQuotationsToPDF(allQuotations)}
+          />
+        </ExpandedViewContainer>
+
+        <ExpandedViewContainer
+          isOpen={expandedView === "invoices"}
+          onClose={() => setExpandedView(null)}
+          title="All Invoices"
+          description="View and manage all your invoices with filtering and export options."
+        >
+          <ExpandedInvoicesTable
+            invoices={allInvoices}
+            onExportCSV={() => exportInvoicesToCSV(allInvoices)}
+            onExportPDF={() => exportInvoicesToPDF(allInvoices)}
+            onPaymentSuccess={refreshData}
+          />
+        </ExpandedViewContainer>
       </div>
     </>
   );
