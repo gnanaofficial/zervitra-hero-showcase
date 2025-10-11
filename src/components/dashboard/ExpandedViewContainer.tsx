@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useRef, memo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Dialog,
@@ -23,7 +24,7 @@ interface ExpandedViewContainerProps {
   children: React.ReactNode;
 }
 
-export const ExpandedViewContainer = ({
+export const ExpandedViewContainer = memo(({
   isOpen,
   onClose,
   title,
@@ -31,6 +32,8 @@ export const ExpandedViewContainer = ({
   children,
 }: ExpandedViewContainerProps) => {
   const isMobile = useIsMobile();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -42,6 +45,14 @@ export const ExpandedViewContainer = ({
     if (isOpen) {
       document.addEventListener("keydown", handleEscape);
       document.body.style.overflow = "hidden";
+
+      const focusableElements = containerRef.current?.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+
+      if (focusableElements && focusableElements.length > 0) {
+        (focusableElements[0] as HTMLElement).focus();
+      }
     }
 
     return () => {
@@ -50,6 +61,8 @@ export const ExpandedViewContainer = ({
     };
   }, [isOpen, onClose]);
 
+  const animationDuration = prefersReducedMotion ? 0.1 : 0.4;
+
   if (isMobile) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -57,17 +70,32 @@ export const ExpandedViewContainer = ({
           className="max-w-full h-full m-0 p-0 rounded-none"
           aria-describedby={description ? "dialog-description" : undefined}
         >
-          <div className="h-full overflow-y-auto p-6">
-            <DialogHeader className="mb-6">
-              <DialogTitle className="text-2xl">{title}</DialogTitle>
-              {description && (
-                <DialogDescription id="dialog-description">
-                  {description}
-                </DialogDescription>
-              )}
-            </DialogHeader>
-            {children}
-          </div>
+          <AnimatePresence>
+            {isOpen && (
+              <motion.div
+                ref={containerRef}
+                initial={{ opacity: 0, scale: prefersReducedMotion ? 1 : 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: prefersReducedMotion ? 1 : 0.95 }}
+                transition={{ duration: animationDuration, ease: "easeOut" }}
+                className="h-full overflow-y-auto p-6"
+                role="dialog"
+                aria-modal="true"
+                aria-label={title}
+                aria-live="polite"
+              >
+                <DialogHeader className="mb-6">
+                  <DialogTitle className="text-2xl">{title}</DialogTitle>
+                  {description && (
+                    <DialogDescription id="dialog-description">
+                      {description}
+                    </DialogDescription>
+                  )}
+                </DialogHeader>
+                {children}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </DialogContent>
       </Dialog>
     );
@@ -80,16 +108,39 @@ export const ExpandedViewContainer = ({
         className="w-full sm:max-w-3xl lg:max-w-5xl overflow-y-auto"
         aria-describedby={description ? "sheet-description" : undefined}
       >
-        <SheetHeader className="mb-6">
-          <SheetTitle className="text-2xl">{title}</SheetTitle>
-          {description && (
-            <SheetDescription id="sheet-description">
-              {description}
-            </SheetDescription>
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              ref={containerRef}
+              initial={{ x: prefersReducedMotion ? 0 : "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: prefersReducedMotion ? 0 : "100%" }}
+              transition={{
+                type: "spring",
+                stiffness: 300,
+                damping: 30,
+                duration: animationDuration
+              }}
+              role="dialog"
+              aria-modal="true"
+              aria-label={title}
+              aria-live="polite"
+            >
+              <SheetHeader className="mb-6">
+                <SheetTitle className="text-2xl">{title}</SheetTitle>
+                {description && (
+                  <SheetDescription id="sheet-description">
+                    {description}
+                  </SheetDescription>
+                )}
+              </SheetHeader>
+              {children}
+            </motion.div>
           )}
-        </SheetHeader>
-        {children}
+        </AnimatePresence>
       </SheetContent>
     </Sheet>
   );
-};
+});
+
+ExpandedViewContainer.displayName = "ExpandedViewContainer";

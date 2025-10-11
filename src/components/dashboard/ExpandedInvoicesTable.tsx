@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useMemo, memo, useCallback, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -18,10 +19,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Download, ArrowUpDown, FileDown } from "lucide-react";
+import { Search, Download, ArrowUpDown, FileDown, CreditCard, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/payments";
 import PaymentButton from "@/components/PaymentButton";
+import { useDebounce } from "@/hooks/useDebounce";
 
 interface Invoice {
   id: string;
@@ -39,18 +41,41 @@ interface ExpandedInvoicesTableProps {
   onExportCSV: () => void;
   onExportPDF: () => void;
   onPaymentSuccess: () => void;
+  loading?: boolean;
 }
 
-export const ExpandedInvoicesTable = ({
+export const ExpandedInvoicesTable = memo(({
   invoices,
   onExportCSV,
   onExportPDF,
   onPaymentSuccess,
+  loading = false,
 }: ExpandedInvoicesTableProps) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  useEffect(() => {
+    const savedState = sessionStorage.getItem('invoices-table-state');
+    if (savedState) {
+      const { searchQuery: sq, statusFilter: sf, sortField: sof, sortDirection: sd } = JSON.parse(savedState);
+      setSearchQuery(sq || "");
+      setStatusFilter(sf || "all");
+      setSortField(sof || "due_date");
+      setSortDirection(sd || "asc");
+    }
+  }, []);
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortField, setSortField] = useState<"amount" | "due_date" | "status">("due_date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  useEffect(() => {
+    sessionStorage.setItem('invoices-table-state', JSON.stringify({
+      searchQuery,
+      statusFilter,
+      sortField,
+      sortDirection
+    }));
+  }, [searchQuery, statusFilter, sortField, sortDirection]);
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -65,38 +90,40 @@ export const ExpandedInvoicesTable = ({
     }
   };
 
-  const handleSort = (field: "amount" | "due_date" | "status") => {
+  const handleSort = useCallback((field: "amount" | "due_date" | "status") => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
       setSortDirection("asc");
     }
-  };
+  }, [sortField, sortDirection]);
 
-  const filteredInvoices = invoices
-    .filter((invoice) => {
-      const matchesSearch =
-        invoice.projects?.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        invoice.id.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" || invoice.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    })
-    .sort((a, b) => {
-      const direction = sortDirection === "asc" ? 1 : -1;
-      if (sortField === "amount") {
-        return direction * (a.amount - b.amount);
-      } else if (sortField === "due_date") {
-        return (
-          direction *
-          (new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
-        );
-      } else if (sortField === "status") {
-        return direction * a.status.localeCompare(b.status);
-      }
-      return 0;
-    });
+  const filteredInvoices = useMemo(() => {
+    return invoices
+      .filter((invoice) => {
+        const matchesSearch =
+          invoice.projects?.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+          invoice.id.toLowerCase().includes(debouncedSearch.toLowerCase());
+        const matchesStatus =
+          statusFilter === "all" || invoice.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      })
+      .sort((a, b) => {
+        const direction = sortDirection === "asc" ? 1 : -1;
+        if (sortField === "amount") {
+          return direction * (a.amount - b.amount);
+        } else if (sortField === "due_date") {
+          return (
+            direction *
+            (new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+          );
+        } else if (sortField === "status") {
+          return direction * a.status.localeCompare(b.status);
+        }
+        return 0;
+      });
+  }, [invoices, debouncedSearch, statusFilter, sortField, sortDirection]);
 
   return (
     <div className="space-y-4">
@@ -202,39 +229,62 @@ export const ExpandedInvoicesTable = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredInvoices.length > 0 ? (
-                filteredInvoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell className="font-medium">
-                      {invoice.projects?.title || "Untitled Project"}
-                    </TableCell>
-                    <TableCell className="font-semibold">
-                      {formatCurrency(invoice.amount, invoice.currency)}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(invoice.due_date), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusBadgeVariant(invoice.status)}>
-                        {invoice.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {invoice.status === "pending" && (
-                        <PaymentButton
-                          invoiceId={invoice.id}
-                          amount={invoice.amount}
-                          currency={invoice.currency}
-                          onPaymentSuccess={onPaymentSuccess}
-                        />
-                      )}
-                    </TableCell>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
                   </TableRow>
                 ))
+              ) : filteredInvoices.length > 0 ? (
+                <AnimatePresence mode="popLayout">
+                  {filteredInvoices.map((invoice, index) => (
+                    <motion.tr
+                      key={invoice.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      className="border-b hover:bg-muted/50 cursor-pointer transition-colors"
+                    >
+                      <TableCell className="font-medium">
+                        {invoice.projects?.title || "Untitled Project"}
+                      </TableCell>
+                      <TableCell className="font-semibold">
+                        {formatCurrency(invoice.amount, invoice.currency)}
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(invoice.due_date), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(invoice.status)}>
+                          {invoice.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {invoice.status === "pending" && (
+                          <PaymentButton
+                            invoiceId={invoice.id}
+                            amount={invoice.amount}
+                            currency={invoice.currency}
+                            onPaymentSuccess={onPaymentSuccess}
+                          />
+                        )}
+                      </TableCell>
+                    </motion.tr>
+                  ))}
+                </AnimatePresence>
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No invoices found matching your criteria.
+                  <TableCell colSpan={5} className="text-center py-12">
+                    <div className="flex flex-col items-center gap-3">
+                      <CreditCard className="w-12 h-12 text-muted-foreground" />
+                      <p className="text-muted-foreground font-medium">No invoices found</p>
+                      <p className="text-sm text-muted-foreground">Try adjusting your search or filter criteria</p>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
@@ -248,4 +298,6 @@ export const ExpandedInvoicesTable = ({
       </div>
     </div>
   );
-};
+});
+
+ExpandedInvoicesTable.displayName = "ExpandedInvoicesTable";

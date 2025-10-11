@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useMemo, memo, useCallback, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -18,9 +19,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Download, ArrowUpDown, FileDown } from "lucide-react";
+import { Search, Download, ArrowUpDown, FileDown, FileText, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/payments";
+import { useDebounce } from "@/hooks/useDebounce";
 
 interface Quotation {
   id: string;
@@ -37,17 +39,40 @@ interface ExpandedQuotationsTableProps {
   quotations: Quotation[];
   onExportCSV: () => void;
   onExportPDF: () => void;
+  loading?: boolean;
 }
 
-export const ExpandedQuotationsTable = ({
+export const ExpandedQuotationsTable = memo(({
   quotations,
   onExportCSV,
   onExportPDF,
+  loading = false,
 }: ExpandedQuotationsTableProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortField, setSortField] = useState<"amount" | "created_at" | "status">("created_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  useEffect(() => {
+    const savedState = sessionStorage.getItem('quotations-table-state');
+    if (savedState) {
+      const { searchQuery: sq, statusFilter: sf, sortField: sof, sortDirection: sd } = JSON.parse(savedState);
+      setSearchQuery(sq || "");
+      setStatusFilter(sf || "all");
+      setSortField(sof || "created_at");
+      setSortDirection(sd || "desc");
+    }
+  }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem('quotations-table-state', JSON.stringify({
+      searchQuery,
+      statusFilter,
+      sortField,
+      sortDirection
+    }));
+  }, [searchQuery, statusFilter, sortField, sortDirection]);
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -62,38 +87,40 @@ export const ExpandedQuotationsTable = ({
     }
   };
 
-  const handleSort = (field: "amount" | "created_at" | "status") => {
+  const handleSort = useCallback((field: "amount" | "created_at" | "status") => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
       setSortDirection("asc");
     }
-  };
+  }, [sortField, sortDirection]);
 
-  const filteredQuotations = quotations
-    .filter((quotation) => {
-      const matchesSearch =
-        quotation.projects?.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        quotation.id.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" || quotation.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    })
-    .sort((a, b) => {
-      const direction = sortDirection === "asc" ? 1 : -1;
-      if (sortField === "amount") {
-        return direction * (a.amount - b.amount);
-      } else if (sortField === "created_at") {
-        return (
-          direction *
-          (new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-        );
-      } else if (sortField === "status") {
-        return direction * a.status.localeCompare(b.status);
-      }
-      return 0;
-    });
+  const filteredQuotations = useMemo(() => {
+    return quotations
+      .filter((quotation) => {
+        const matchesSearch =
+          quotation.projects?.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+          quotation.id.toLowerCase().includes(debouncedSearch.toLowerCase());
+        const matchesStatus =
+          statusFilter === "all" || quotation.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      })
+      .sort((a, b) => {
+        const direction = sortDirection === "asc" ? 1 : -1;
+        if (sortField === "amount") {
+          return direction * (a.amount - b.amount);
+        } else if (sortField === "created_at") {
+          return (
+            direction *
+            (new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+          );
+        } else if (sortField === "status") {
+          return direction * a.status.localeCompare(b.status);
+        }
+        return 0;
+      });
+  }, [quotations, debouncedSearch, statusFilter, sortField, sortDirection]);
 
   return (
     <div className="space-y-4">
@@ -198,29 +225,55 @@ export const ExpandedQuotationsTable = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredQuotations.length > 0 ? (
-                filteredQuotations.map((quotation) => (
-                  <TableRow key={quotation.id}>
-                    <TableCell className="font-medium">
-                      {quotation.projects?.title || "Untitled Project"}
-                    </TableCell>
-                    <TableCell className="font-semibold">
-                      {formatCurrency(quotation.amount, quotation.currency)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusBadgeVariant(quotation.status)}>
-                        {quotation.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(quotation.created_at), "MMM d, yyyy")}
-                    </TableCell>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   </TableRow>
                 ))
+              ) : filteredQuotations.length > 0 ? (
+                <AnimatePresence mode="popLayout">
+                  {filteredQuotations.map((quotation, index) => (
+                    <motion.tr
+                      key={quotation.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      className="border-b hover:bg-muted/50 cursor-pointer transition-colors"
+                    >
+                      <TableCell className="font-medium">
+                        {quotation.projects?.title || "Untitled Project"}
+                      </TableCell>
+                      <TableCell className="font-semibold">
+                        {formatCurrency(quotation.amount, quotation.currency)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(quotation.status)}>
+                          {quotation.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(quotation.created_at), "MMM d, yyyy")}
+                      </TableCell>
+                    </motion.tr>
+                  ))}
+                </AnimatePresence>
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    No quotations found matching your criteria.
+                  <TableCell colSpan={4} className="text-center py-12">
+                    <div className="flex flex-col items-center gap-3">
+                      <FileText className="w-12 h-12 text-muted-foreground" />
+                      <p className="text-muted-foreground font-medium">No quotations found</p>
+                      <p className="text-sm text-muted-foreground">Try adjusting your search or filter criteria</p>
+                      <Button variant="outline" size="sm" className="mt-2">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Request New Quotation
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
@@ -234,4 +287,6 @@ export const ExpandedQuotationsTable = ({
       </div>
     </div>
   );
-};
+});
+
+ExpandedQuotationsTable.displayName = "ExpandedQuotationsTable";

@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useMemo, memo, useCallback, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -18,8 +19,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Download, ArrowUpDown, FileDown } from "lucide-react";
+import { Search, Download, ArrowUpDown, FileDown, FolderOpen, Plus } from "lucide-react";
 import { format } from "date-fns";
+import { useDebounce } from "@/hooks/useDebounce";
 
 interface Project {
   id: string;
@@ -35,17 +37,40 @@ interface ExpandedProjectsTableProps {
   projects: Project[];
   onExportCSV: () => void;
   onExportPDF: () => void;
+  loading?: boolean;
 }
 
-export const ExpandedProjectsTable = ({
+export const ExpandedProjectsTable = memo(({
   projects,
   onExportCSV,
   onExportPDF,
+  loading = false,
 }: ExpandedProjectsTableProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortField, setSortField] = useState<"title" | "created_at" | "status">("created_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  useEffect(() => {
+    const savedState = sessionStorage.getItem('projects-table-state');
+    if (savedState) {
+      const { searchQuery: sq, statusFilter: sf, sortField: sof, sortDirection: sd } = JSON.parse(savedState);
+      setSearchQuery(sq || "");
+      setStatusFilter(sf || "all");
+      setSortField(sof || "created_at");
+      setSortDirection(sd || "desc");
+    }
+  }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem('projects-table-state', JSON.stringify({
+      searchQuery,
+      statusFilter,
+      sortField,
+      sortDirection
+    }));
+  }, [searchQuery, statusFilter, sortField, sortDirection]);
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -62,38 +87,40 @@ export const ExpandedProjectsTable = ({
     }
   };
 
-  const handleSort = (field: "title" | "created_at" | "status") => {
+  const handleSort = useCallback((field: "title" | "created_at" | "status") => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
       setSortDirection("asc");
     }
-  };
+  }, [sortField, sortDirection]);
 
-  const filteredProjects = projects
-    .filter((project) => {
-      const matchesSearch =
-        project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" || project.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    })
-    .sort((a, b) => {
-      const direction = sortDirection === "asc" ? 1 : -1;
-      if (sortField === "title") {
-        return direction * a.title.localeCompare(b.title);
-      } else if (sortField === "created_at") {
-        return (
-          direction *
-          (new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-        );
-      } else if (sortField === "status") {
-        return direction * a.status.localeCompare(b.status);
-      }
-      return 0;
-    });
+  const filteredProjects = useMemo(() => {
+    return projects
+      .filter((project) => {
+        const matchesSearch =
+          project.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+          project.description.toLowerCase().includes(debouncedSearch.toLowerCase());
+        const matchesStatus =
+          statusFilter === "all" || project.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      })
+      .sort((a, b) => {
+        const direction = sortDirection === "asc" ? 1 : -1;
+        if (sortField === "title") {
+          return direction * a.title.localeCompare(b.title);
+        } else if (sortField === "created_at") {
+          return (
+            direction *
+            (new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+          );
+        } else if (sortField === "status") {
+          return direction * a.status.localeCompare(b.status);
+        }
+        return 0;
+      });
+  }, [projects, debouncedSearch, statusFilter, sortField, sortDirection]);
 
   return (
     <div className="space-y-4">
@@ -199,27 +226,53 @@ export const ExpandedProjectsTable = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProjects.length > 0 ? (
-                filteredProjects.map((project) => (
-                  <TableRow key={project.id}>
-                    <TableCell className="font-medium">{project.title}</TableCell>
-                    <TableCell className="hidden md:table-cell max-w-xs truncate">
-                      {project.description}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusBadgeVariant(project.status)}>
-                        {project.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(project.created_at), "MMM d, yyyy")}
-                    </TableCell>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-48" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   </TableRow>
                 ))
+              ) : filteredProjects.length > 0 ? (
+                <AnimatePresence mode="popLayout">
+                  {filteredProjects.map((project, index) => (
+                    <motion.tr
+                      key={project.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      className="border-b hover:bg-muted/50 cursor-pointer transition-colors"
+                    >
+                      <TableCell className="font-medium">{project.title}</TableCell>
+                      <TableCell className="hidden md:table-cell max-w-xs truncate">
+                        {project.description}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(project.status)}>
+                          {project.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(project.created_at), "MMM d, yyyy")}
+                      </TableCell>
+                    </motion.tr>
+                  ))}
+                </AnimatePresence>
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    No projects found matching your criteria.
+                  <TableCell colSpan={4} className="text-center py-12">
+                    <div className="flex flex-col items-center gap-3">
+                      <FolderOpen className="w-12 h-12 text-muted-foreground" />
+                      <p className="text-muted-foreground font-medium">No projects found</p>
+                      <p className="text-sm text-muted-foreground">Try adjusting your search or filter criteria</p>
+                      <Button variant="outline" size="sm" className="mt-2">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Request New Project
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
@@ -233,4 +286,6 @@ export const ExpandedProjectsTable = ({
       </div>
     </div>
   );
-};
+});
+
+ExpandedProjectsTable.displayName = "ExpandedProjectsTable";
