@@ -8,7 +8,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   role: 'admin' | 'user' | null;
-  signIn: (email: string, password: string, expectedRole?: 'admin' | 'user') => Promise<{ error: any }>;
+  signIn: (email: string, password: string, expectedRole?: 'admin' | 'user') => Promise<{ error: any; redirectTo: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -89,7 +89,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: error.message,
         variant: "destructive"
       });
-      return { error };
+      return { error, redirectTo: null };
     }
 
     // Verify role matches expected role if provided
@@ -110,8 +110,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           description: roleError.message,
           variant: "destructive"
         });
-        return { error: roleError };
+        return { error: roleError, redirectTo: null };
       }
+
+      // Set role and determine redirect path
+      setRole(roleData.role as 'admin' | 'user');
+      const redirectTo = roleData.role === 'admin' ? '/admin/dashboard' : '/client/dashboard';
+
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully logged in."
+      });
+
+      return { error: null, redirectTo };
     }
 
     toast({
@@ -119,7 +130,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       description: "You have successfully logged in."
     });
 
-    return { error: null };
+    return { error: null, redirectTo: null };
   };
 
   const signOut = async () => {

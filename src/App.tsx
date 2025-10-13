@@ -7,6 +7,8 @@ import { HelmetProvider } from "react-helmet-async";
 import { Suspense, lazy } from "react";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AdminRoute from "@/components/AdminRoute";
+import ClientRoute from "@/components/ClientRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
@@ -18,7 +20,10 @@ const Pricing = lazy(() => import("./pages/Pricing"));
 const Login = lazy(() => import("./pages/Login"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const UserLogin = lazy(() => import("./pages/UserLogin"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const ClientDashboard = lazy(() => import("./pages/ClientDashboard"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Unauthorized = lazy(() => import("./pages/Unauthorized"));
 
 // Service detail pages
 const WebDevelopment = lazy(() => import("./pages/services/WebDevelopment"));
@@ -59,7 +64,25 @@ const App = () => (
                   <Route path="/services/social-media-marketing" element={<SocialMediaMarketing />} />
                   <Route path="/services/more" element={<MoreServices />} />
                   
-                  {/* Protected routes */}
+                  {/* Protected routes - Role-based */}
+                  <Route 
+                    path="/admin/dashboard" 
+                    element={
+                      <AdminRoute>
+                        <AdminDashboard />
+                      </AdminRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/client/dashboard" 
+                    element={
+                      <ClientRoute>
+                        <ClientDashboard />
+                      </ClientRoute>
+                    } 
+                  />
+                  
+                  {/* Legacy dashboard route - redirects based on role */}
                   <Route 
                     path="/dashboard" 
                     element={
@@ -68,6 +91,9 @@ const App = () => (
                       </ProtectedRoute>
                     } 
                   />
+
+                  {/* Unauthorized page */}
+                  <Route path="/unauthorized" element={<Unauthorized />} />
                   
                   {/* Catch-all route */}
                   <Route path="*" element={<NotFound />} />

@@ -27,9 +27,9 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      const { error } = await signIn(email, password, 'admin');
-      if (!error) {
-        navigate('/admin/dashboard');
+      const { error, redirectTo } = await signIn(email, password, 'admin');
+      if (!error && redirectTo) {
+        navigate(redirectTo, { replace: true });
       }
     } catch (error) {
       console.error('Login error:', error);

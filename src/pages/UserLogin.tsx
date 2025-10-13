@@ -27,9 +27,9 @@ const UserLogin = () => {
     setLoading(true);
 
     try {
-      const { error } = await signIn(email, password, 'user');
-      if (!error) {
-        navigate('/dashboard');
+      const { error, redirectTo } = await signIn(email, password, 'user');
+      if (!error && redirectTo) {
+        navigate(redirectTo, { replace: true });
       }
     } catch (error) {
       console.error('Login error:', error);
