@@ -39,9 +39,11 @@ import {
 type ExpandedView = "projects" | "quotations" | "invoices" | null;
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { loading, error, projects, quotations, invoices, allProjects, allQuotations, allInvoices, overview, refreshData } = useDashboardData();
   const [expandedView, setExpandedView] = useState<ExpandedView>(null);
+  
+  const isAdmin = role === 'admin';
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -140,11 +142,23 @@ const Dashboard = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-                Welcome back, {user?.email?.split('@')[0] || 'Client'}!
-              </h1>
+              <div className="flex items-center gap-3 mb-4">
+                <h1 className="text-4xl md:text-5xl font-bold text-foreground">
+                  Welcome back, {user?.email?.split('@')[0] || 'Client'}!
+                </h1>
+                {role && (
+                  <Badge 
+                    variant={isAdmin ? 'destructive' : 'default'}
+                    className="text-lg px-4 py-1"
+                  >
+                    {isAdmin ? 'Admin Dashboard' : 'Client Dashboard'}
+                  </Badge>
+                )}
+              </div>
               <p className="text-xl text-muted-foreground mb-8">
-                Here's an overview of your projects and account status.
+                {isAdmin 
+                  ? "Manage all clients, projects, and financial records."
+                  : "Here's an overview of your projects and account status."}
               </p>
             </motion.div>
           </div>
@@ -252,9 +266,11 @@ const Dashboard = () => {
               >
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-semibold text-foreground">Recent Projects</h3>
-                  <Button variant="ghost" size="sm">
-                    View All
-                  </Button>
+                  {isAdmin && (
+                    <Button variant="ghost" size="sm" onClick={() => setExpandedView("projects")}>
+                      View All
+                    </Button>
+                  )}
                 </div>
                 
                 <div className="space-y-4">

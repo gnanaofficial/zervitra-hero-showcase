@@ -7,7 +7,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  role: 'admin' | 'user' | null;
+  signIn: (email: string, password: string, expectedRole?: 'admin' | 'user') => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -17,17 +18,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<'admin' | 'user' | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
+    const fetchUserRole = async (userId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .single();
+        
+        if (!error && data) {
+          setRole(data.role as 'admin' | 'user');
+        }
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          fetchUserRole(session.user.id);
+        } else {
+          setRole(null);
+        }
+        
         setLoading(false);
         
         if (event === 'SIGNED_OUT') {
+          setRole(null);
           toast({
             title: "Signed out successfully",
             description: "You have been logged out."
@@ -40,14 +66,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchUserRole(session.user.id);
+      }
+      
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, [toast]);
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+  const signIn = async (email: string, password: string, expectedRole?: 'admin' | 'user') => {
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
@@ -58,14 +89,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: error.message,
         variant: "destructive"
       });
-    } else {
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully logged in."
-      });
+      return { error };
     }
 
-    return { error };
+    // Verify role matches expected role if provided
+    if (expectedRole && data.user) {
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', data.user.id)
+        .single();
+
+      if (roleError || !roleData || roleData.role !== expectedRole) {
+        await supabase.auth.signOut();
+        const roleError = {
+          message: `Access denied. This login is for ${expectedRole}s only.`
+        };
+        toast({
+          title: "Access denied",
+          description: roleError.message,
+          variant: "destructive"
+        });
+        return { error: roleError };
+      }
+    }
+
+    toast({
+      title: "Welcome back!",
+      description: "You have successfully logged in."
+    });
+
+    return { error: null };
   };
 
   const signOut = async () => {
@@ -76,6 +130,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     user,
     session,
     loading,
+    role,
     signIn,
     signOut
   };

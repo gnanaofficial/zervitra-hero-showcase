@@ -1,13 +1,15 @@
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Menu, X, Shield, User } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { scroller } from "react-scroll";
+import SignOutConfirmDialog from "@/components/SignOutConfirmDialog";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -51,9 +53,22 @@ const Navbar = () => {
     if (user) {
       navigate("/dashboard");
     } else {
-      navigate("/login");
+      navigate(role === 'admin' ? "/admin-login" : "/user-login");
     }
     setIsMenuOpen(false);
+  };
+
+  const getRoleBadge = () => {
+    if (!role) return null;
+    return (
+      <Badge 
+        variant={role === 'admin' ? 'destructive' : 'default'}
+        className="ml-2 flex items-center gap-1"
+      >
+        {role === 'admin' ? <Shield className="w-3 h-3" /> : <User className="w-3 h-3" />}
+        {role === 'admin' ? 'Admin' : 'Client'}
+      </Badge>
+    );
   };
 
   return (
@@ -84,13 +99,17 @@ const Navbar = () => {
         {/* Auth Button - Hidden on mobile */}
         <div className="hidden md:flex items-center space-x-4">
           {user && (
-            <Button
-              variant="ghost"
-              onClick={signOut}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Sign Out
-            </Button>
+            <>
+              <SignOutConfirmDialog onConfirm={signOut}>
+                <Button
+                  variant="ghost"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Sign Out
+                </Button>
+              </SignOutConfirmDialog>
+              {getRoleBadge()}
+            </>
           )}
           <Button
             variant="outline"
@@ -133,13 +152,19 @@ const Navbar = () => {
             ))}
             <div className="pt-4 border-t border-border/20 space-y-2">
               {user && (
-                <Button
-                  variant="ghost"
-                  onClick={signOut}
-                  className="w-full text-muted-foreground hover:text-foreground"
-                >
-                  Sign Out
-                </Button>
+                <>
+                  <div className="flex justify-center mb-2">
+                    {getRoleBadge()}
+                  </div>
+                  <SignOutConfirmDialog onConfirm={signOut}>
+                    <Button
+                      variant="ghost"
+                      className="w-full text-muted-foreground hover:text-foreground"
+                    >
+                      Sign Out
+                    </Button>
+                  </SignOutConfirmDialog>
+                </>
               )}
               <Button
                 variant="outline"
