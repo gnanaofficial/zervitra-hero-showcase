@@ -337,7 +337,7 @@ const Dashboard = () => {
                 delay: 0.4
               }} className="premium-glass rounded-3xl p-6 border border-white/10">
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-semibold text-foreground">Recent Invoices</h3>
+                    <h3 className="text-xl font-semibold text-foreground">Recent Payments</h3>
                     <Button variant="ghost" size="sm">
                       View All
                     </Button>
