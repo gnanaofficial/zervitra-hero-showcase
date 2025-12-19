@@ -21,6 +21,7 @@ const Login = lazy(() => import("./pages/Login"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const UserLogin = lazy(() => import("./pages/UserLogin"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const QuotationGenerator = lazy(() => import("./pages/admin/QuotationGenerator"));
 const ClientDashboard = lazy(() => import("./pages/ClientDashboard"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Unauthorized = lazy(() => import("./pages/Unauthorized"));
@@ -70,6 +71,14 @@ const App = () => (
                     element={
                       <AdminRoute>
                         <AdminDashboard />
+                      </AdminRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/admin/quotation-generator" 
+                    element={
+                      <AdminRoute>
+                        <QuotationGenerator />
                       </AdminRoute>
                     } 
                   />
