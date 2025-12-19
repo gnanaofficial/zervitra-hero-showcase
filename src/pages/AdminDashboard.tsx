@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import {
   CheckCircle,
   Users,
   UserPlus,
+  FilePlus,
 } from "lucide-react";
 import { ExpandButton } from "@/components/dashboard/ExpandButton";
 import { ExpandedViewContainer } from "@/components/dashboard/ExpandedViewContainer";
@@ -36,6 +38,7 @@ type ExpandedView = "projects" | "quotations" | "invoices" | null;
 
 const AdminDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { loading, error, projects, quotations, invoices, allProjects, allQuotations, allInvoices, overview, refreshData } = useDashboardData();
   const [expandedView, setExpandedView] = useState<ExpandedView>(null);
 
@@ -142,10 +145,16 @@ const AdminDashboard = () => {
                     Administrator
                   </Badge>
                 </div>
-                <Button size="lg" className="gap-2">
-                  <UserPlus className="w-5 h-5" />
-                  Invite Client
-                </Button>
+                <div className="flex items-center gap-3">
+                  <Button size="lg" className="gap-2" onClick={() => navigate('/admin/quotation-generator')}>
+                    <FilePlus className="w-5 h-5" />
+                    Create Quotation
+                  </Button>
+                  <Button size="lg" variant="outline" className="gap-2">
+                    <UserPlus className="w-5 h-5" />
+                    Invite Client
+                  </Button>
+                </div>
               </div>
               <p className="text-xl text-muted-foreground mb-8">
                 Manage all clients, projects, quotations, invoices, and financial records.
