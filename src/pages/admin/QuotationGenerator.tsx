@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
@@ -18,15 +18,18 @@ import { Separator } from "@/components/ui/separator";
 import { 
   Plus, 
   Trash2, 
-  FileDown, 
   Printer,
   Moon,
   Zap,
   CheckCircle,
-  Info
+  Info,
+  Mail,
+  Save,
+  Loader2
 } from "lucide-react";
-import { format } from "date-fns";
-import zerviraLogo from "@/Resources/logo/zervimain.svg";
+import { format, addDays } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface ServiceItem {
   id: string;
@@ -37,10 +40,12 @@ interface ServiceItem {
 }
 
 interface ClientDetails {
+  id: string;
   name: string;
   phone: string;
   address: string;
   clientId: string;
+  email: string;
 }
 
 interface QuotationSettings {
@@ -48,6 +53,12 @@ interface QuotationSettings {
   exchangeRate: number;
   validityDays: number;
   advancePercentage: number;
+}
+
+interface DatabaseClient {
+  id: string;
+  company_name: string | null;
+  contact_email: string | null;
 }
 
 const defaultServices: ServiceItem[] = [
@@ -72,13 +83,20 @@ const complimentaryAddons = [
 
 const QuotationGenerator = () => {
   const printRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
   const [isDarkPreview, setIsDarkPreview] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [clients, setClients] = useState<DatabaseClient[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
   
   const [clientDetails, setClientDetails] = useState<ClientDetails>({
+    id: "",
     name: "Sandeep Goud",
     phone: "+919951999114",
     address: "Settipalli, kamam dist",
     clientId: "Z0701-IND-2509",
+    email: "",
   });
 
   const [services, setServices] = useState<ServiceItem[]>(defaultServices);
@@ -91,6 +109,34 @@ const QuotationGenerator = () => {
   });
 
   const [selectedAddons, setSelectedAddons] = useState<string[]>(complimentaryAddons);
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  const fetchClients = async () => {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('id, company_name, contact_email');
+    
+    if (!error && data) {
+      setClients(data);
+    }
+  };
+
+  const handleClientSelect = (clientId: string) => {
+    setSelectedClientId(clientId);
+    const client = clients.find(c => c.id === clientId);
+    if (client) {
+      setClientDetails(prev => ({
+        ...prev,
+        id: client.id,
+        name: client.company_name || 'Unnamed Client',
+        email: client.contact_email || '',
+        clientId: `Z-${client.id.substring(0, 8).toUpperCase()}`,
+      }));
+    }
+  };
 
   const quotationId = useMemo(() => {
     const date = new Date();
@@ -141,6 +187,104 @@ const QuotationGenerator = () => {
     setServices(services.map(s => 
       s.id === id ? { ...s, [field]: value } : s
     ));
+  };
+
+  const handleSaveQuotation = async () => {
+    if (!selectedClientId) {
+      toast({
+        title: "Error",
+        description: "Please select a client first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Get client's project
+      const { data: projects } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('client_id', selectedClientId)
+        .limit(1);
+
+      if (!projects?.length) {
+        toast({
+          title: "Error",
+          description: "No project found for this client. Please create a project first.",
+          variant: "destructive"
+        });
+        setIsSaving(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from('quotations')
+        .insert({
+          client_id: selectedClientId,
+          project_id: projects[0].id,
+          amount: calculations.netPayableUSD,
+          currency: 'USD',
+          status: 'pending',
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Quotation saved to database"
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!clientDetails.email) {
+      toast({
+        title: "Error",
+        description: "Client email is required to send quotation",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      const validUntil = format(addDays(new Date(), settings.validityDays), "MMMM d, yyyy");
+      
+      const response = await supabase.functions.invoke('send-quotation-email', {
+        body: {
+          to: clientDetails.email,
+          clientName: clientDetails.name,
+          quotationId: quotationId,
+          amount: calculations.netPayableUSD.toFixed(2),
+          currency: 'USD',
+          validUntil: validUntil,
+        }
+      });
+
+      if (response.error) throw response.error;
+
+      toast({
+        title: "Success",
+        description: "Quotation sent to client's email"
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send email. Make sure RESEND_API_KEY is configured.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handlePrint = () => {
@@ -209,6 +353,24 @@ const QuotationGenerator = () => {
                 >
                   <Moon className="h-4 w-4" />
                 </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleSaveQuotation} 
+                  disabled={isSaving}
+                  className="gap-2"
+                >
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleSendEmail}
+                  disabled={isSending}
+                  className="gap-2"
+                >
+                  {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                  Email
+                </Button>
                 <Button onClick={handlePrint} className="gap-2">
                   <Printer className="h-4 w-4" />
                   Export PDF
@@ -230,6 +392,21 @@ const QuotationGenerator = () => {
                     <CardTitle className="text-lg">Client Details</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Select Existing Client</Label>
+                      <Select value={selectedClientId} onValueChange={handleClientSelect}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a client from database..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.company_name || 'Unnamed Client'} - {client.contact_email || 'No email'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Client Name</Label>
@@ -250,6 +427,15 @@ const QuotationGenerator = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
+                        <Label>Email</Label>
+                        <Input
+                          type="email"
+                          value={clientDetails.email}
+                          onChange={(e) => setClientDetails({ ...clientDetails, email: e.target.value })}
+                          placeholder="client@email.com"
+                        />
+                      </div>
+                      <div className="space-y-2">
                         <Label>Phone</Label>
                         <Input
                           value={clientDetails.phone}
@@ -257,14 +443,14 @@ const QuotationGenerator = () => {
                           placeholder="+91XXXXXXXXXX"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label>Address</Label>
-                        <Input
-                          value={clientDetails.address}
-                          onChange={(e) => setClientDetails({ ...clientDetails, address: e.target.value })}
-                          placeholder="Enter address"
-                        />
-                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Address</Label>
+                      <Input
+                        value={clientDetails.address}
+                        onChange={(e) => setClientDetails({ ...clientDetails, address: e.target.value })}
+                        placeholder="Enter address"
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -467,6 +653,7 @@ const QuotationGenerator = () => {
                           </div>
                         </div>
                         <div className="text-right text-sm">
+                          <div><span className="text-gray-400">Email :</span> {clientDetails.email || 'N/A'}</div>
                           <div><span className="text-gray-400">Phone :</span> {clientDetails.phone}</div>
                           <div><span className="text-gray-400">Address :</span> {clientDetails.address}</div>
                         </div>
@@ -492,7 +679,7 @@ const QuotationGenerator = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {services.map((service, index) => (
+                          {services.map((service) => (
                             <tr 
                               key={service.id} 
                               className={`border-b ${isDarkPreview ? 'border-gray-700' : 'border-gray-200'}`}

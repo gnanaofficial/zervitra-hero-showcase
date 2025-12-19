@@ -92,25 +92,44 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return { error, redirectTo: null };
     }
 
-    // Verify role matches expected role if provided
-    if (expectedRole && data.user) {
+    // Fetch user role
+    if (data.user) {
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', data.user.id)
         .single();
 
-      if (roleError || !roleData || roleData.role !== expectedRole) {
+      if (roleError || !roleData) {
+        // If expectedRole is set and no role found, deny access
+        if (expectedRole) {
+          await supabase.auth.signOut();
+          const noRoleError = { message: 'No role assigned to this user.' };
+          toast({
+            title: "Access denied",
+            description: noRoleError.message,
+            variant: "destructive"
+          });
+          return { error: noRoleError, redirectTo: null };
+        }
+        
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully logged in."
+        });
+        return { error: null, redirectTo: '/dashboard' };
+      }
+
+      // If expectedRole is set, verify it matches
+      if (expectedRole && roleData.role !== expectedRole) {
         await supabase.auth.signOut();
-        const roleError = {
-          message: `Access denied. This login is for ${expectedRole}s only.`
-        };
+        const mismatchError = { message: `Access denied. This login is for ${expectedRole}s only.` };
         toast({
           title: "Access denied",
-          description: roleError.message,
+          description: mismatchError.message,
           variant: "destructive"
         });
-        return { error: roleError, redirectTo: null };
+        return { error: mismatchError, redirectTo: null };
       }
 
       // Set role and determine redirect path
@@ -130,7 +149,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       description: "You have successfully logged in."
     });
 
-    return { error: null, redirectTo: null };
+    return { error: null, redirectTo: '/dashboard' };
   };
 
   const signOut = async () => {

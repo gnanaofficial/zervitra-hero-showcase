@@ -18,10 +18,9 @@ const About = lazy(() => import("./pages/About"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Login = lazy(() => import("./pages/Login"));
-const AdminLogin = lazy(() => import("./pages/AdminLogin"));
-const UserLogin = lazy(() => import("./pages/UserLogin"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const QuotationGenerator = lazy(() => import("./pages/admin/QuotationGenerator"));
+const InvoiceGenerator = lazy(() => import("./pages/admin/InvoiceGenerator"));
 const ClientDashboard = lazy(() => import("./pages/ClientDashboard"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Unauthorized = lazy(() => import("./pages/Unauthorized"));
@@ -54,8 +53,6 @@ const App = () => (
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/pricing" element={<Pricing />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/admin-login" element={<AdminLogin />} />
-          <Route path="/user-login" element={<UserLogin />} />
                   
                   {/* Service detail pages */}
                   <Route path="/services/web-development" element={<WebDevelopment />} />
