@@ -1,86 +1,132 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
-import { Helmet } from 'react-helmet-async';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Helmet } from 'react-helmet-async';
+import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Shield, User } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useAuth } from '@/context/AuthContext';
+import zerviraLogo from '@/Resources/logo/zervimain.svg';
 
 const Login = () => {
-  const { user } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { user, role, signIn } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Redirect authenticated users to dashboard
-    if (user) {
-      navigate('/dashboard', { replace: true });
+    if (user && role) {
+      const redirectTo = role === 'admin' ? '/admin/dashboard' : '/client/dashboard';
+      navigate(redirectTo, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, role, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error, redirectTo } = await signIn(email, password);
+      if (!error && redirectTo) {
+        navigate(redirectTo, { replace: true });
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
       <Helmet>
         <title>Login - Zervitra</title>
-        <meta name="description" content="Sign in to access your Zervitra dashboard" />
-        <meta name="robots" content="noindex, nofollow" />
+        <meta name="description" content="Sign in to your Zervitra account" />
       </Helmet>
 
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.4 }}
           className="w-full max-w-md"
         >
-          <div className="text-center mb-8">
-            <img
-              src="/src/Resources/logo/zervimain.svg"
-              alt="Zervitra Logo"
-              className="h-14 w-auto mx-auto mb-6"
-            />
-            <h1 className="text-4xl font-bold text-foreground mb-2">
-              Welcome to Zervitra
-            </h1>
-            <p className="text-muted-foreground">
-              Choose your login type to continue
-            </p>
-          </div>
+          <div className="bg-card border border-border rounded-2xl shadow-lg p-8">
+            <div className="flex flex-col items-center mb-8">
+              <img 
+                src={zerviraLogo} 
+                alt="Zervitra" 
+                className="h-12 w-auto mb-4"
+              />
+              <h1 className="text-3xl font-bold text-foreground">Welcome Back</h1>
+              <p className="text-muted-foreground mt-2">Sign in to your account</p>
+            </div>
 
-          <div className="premium-glass rounded-3xl p-8 border border-white/10 space-y-4">
-            {/* Admin Login */}
-            <Button
-              onClick={() => navigate('/admin-login')}
-              className="w-full h-20 text-lg flex items-center justify-center gap-3 bg-destructive/10 hover:bg-destructive hover:text-destructive-foreground border-2 border-destructive/30 hover:border-destructive"
-              variant="outline"
-            >
-              <Shield className="w-6 h-6" />
-              <div className="text-left">
-                <div className="font-bold">Admin Login</div>
-                <div className="text-xs opacity-70">For administrators only</div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your.email@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  className="h-11"
+                />
               </div>
-            </Button>
 
-            {/* User/Client Login */}
-            <Button
-              onClick={() => navigate('/user-login')}
-              className="w-full h-20 text-lg flex items-center justify-center gap-3 bg-primary/10 hover:bg-primary hover:text-primary-foreground border-2 border-primary/30 hover:border-primary"
-              variant="outline"
-            >
-              <User className="w-6 h-6" />
-              <div className="text-left">
-                <div className="font-bold">Client Login</div>
-                <div className="text-xs opacity-70">For clients and users</div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="current-password"
+                    className="h-11 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-            </Button>
 
-            <div className="pt-4 text-center">
               <Button
-                onClick={() => navigate('/')}
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground"
+                type="submit"
+                disabled={loading}
+                className="w-full h-11 gap-2"
               >
-                ← Back to Home
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="h-4 w-4" />
+                    Sign In
+                  </>
+                )}
               </Button>
+            </form>
+
+            <div className="mt-6 text-center text-sm">
+              <Link to="/" className="text-muted-foreground hover:text-primary transition-colors">
+                Back to home
+              </Link>
             </div>
           </div>
         </motion.div>
