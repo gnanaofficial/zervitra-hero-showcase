@@ -91,110 +91,25 @@ export function CreateClientDialog({ onSuccess }: CreateClientDialogProps) {
 
         setIsLoading(true);
         try {
-            // Get Supabase service role key from environment
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-            const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
-
-            if (!supabaseServiceKey) {
-                throw new Error("Service role key not configured. Please add VITE_SUPABASE_SERVICE_ROLE_KEY to your .env file");
-            }
-
-            console.log('Supabase URL:', supabaseUrl);
-            console.log('Service Key exists:', !!supabaseServiceKey);
-            console.log('API Endpoint:', `${supabaseUrl}/auth/v1/admin/users`);
-
-            // Create auth user using Admin API
-            const createUserResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${supabaseServiceKey}`,
-                    'apikey': supabaseServiceKey,
-                },
-                body: JSON.stringify({
+            // Use edge function to create client (secure - no service role key in frontend)
+            const { data: result, error } = await supabase.functions.invoke('create-client', {
+                body: {
                     email: data.contact_email,
                     password: data.password,
-                    email_confirm: true, // Auto-confirm email
-                    user_metadata: {
-                        company_name: data.company_name,
-                    }
-                }),
+                    companyName: data.company_name,
+                    phone: data.phone || null,
+                    address: data.address || null,
+                    city: data.city || null,
+                    state: data.state || null,
+                    zip: data.zip || null,
+                    country: data.country || 'IND',
+                    projectCode: 'E',
+                    platformCode: 'W',
+                },
             });
 
-            if (!createUserResponse.ok) {
-                const errorData = await createUserResponse.json();
-                console.error('User creation failed:', errorData);
-
-                // Handle specific error cases
-                if (errorData.msg === 'User already registered' || errorData.message?.includes('already registered')) {
-                    throw new Error(`This email (${data.contact_email}) is already registered. Please use a different email address.`);
-                }
-
-                throw new Error(errorData.message || errorData.msg || 'Failed to create user account');
-            }
-
-            const responseData = await createUserResponse.json();
-            console.log('Admin API Response:', responseData); // Debug log
-
-            // The response structure might be different, check for user in different places
-            const newUser = responseData.user || responseData.data?.user || responseData;
-
-            if (!newUser || !newUser.id) {
-                console.error('Invalid user response:', responseData);
-                throw new Error('Failed to create user - invalid response from server');
-            }
-
-            // Assign 'user' role to the new client
-            const { error: roleError } = await supabase
-                .from('user_roles')
-                .insert({
-                    user_id: newUser.id,
-                    role: 'user',
-                });
-
-            if (roleError) {
-                console.error('Failed to assign role:', roleError);
-                // Continue anyway, role can be assigned later
-            }
-
-            // Create client record
-            const { error: clientError } = await supabase.from("clients").insert({
-                user_id: newUser.id,
-                company_name: data.company_name,
-                contact_email: data.contact_email,
-                phone: data.phone || null,
-                address: data.address || null,
-                city: data.city || null,
-                state: data.state || null,
-                zip: data.zip || null,
-                country: data.country || null,
-            });
-
-            if (clientError) throw clientError;
-
-            // Send welcome email via edge function
-            try {
-                const { error: emailError } = await supabase.functions.invoke('send-client-welcome', {
-                    body: {
-                        email: data.contact_email,
-                        password: data.password,
-                        companyName: data.company_name,
-                        loginUrl: `${window.location.origin}/user-login`,
-                    },
-                });
-
-                if (emailError) {
-                    console.error('Failed to send welcome email:', emailError);
-                    // Don't fail the whole operation if email fails
-                    toast({
-                        title: "Client Created",
-                        description: "Client created but welcome email failed to send. Please share credentials manually.",
-                        variant: "default",
-                    });
-                }
-            } catch (emailError) {
-                console.error('Email function error:', emailError);
-            }
+            if (error) throw error;
+            if (result?.error) throw new Error(result.error);
 
             // Store the generated password and email for display
             setGeneratedPassword(data.password);
@@ -202,10 +117,9 @@ export function CreateClientDialog({ onSuccess }: CreateClientDialogProps) {
 
             toast({
                 title: "Success",
-                description: "Client account created successfully! Credentials displayed below.",
+                description: `Client created successfully! Client ID: ${result?.clientId || 'Generated'}`,
             });
 
-            // Don't close dialog immediately - show the password
             reset();
             onSuccess?.();
         } catch (error: any) {

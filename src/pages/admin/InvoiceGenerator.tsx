@@ -5,7 +5,6 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Select,
   SelectContent,
@@ -37,16 +36,27 @@ interface ServiceItem {
 
 interface ClientDetails {
   id: string;
+  uuid: string;
   name: string;
   email: string;
   phone: string;
   address: string;
+  clientId: string;
 }
 
 interface InvoiceSettings {
   gstPercentage: number;
   exchangeRate: number;
   paymentTermsDays: number;
+}
+
+interface DatabaseClient {
+  id: string;
+  company_name: string | null;
+  contact_email: string | null;
+  client_id: string | null;
+  phone: string | null;
+  address: string | null;
 }
 
 const defaultServices: ServiceItem[] = [
@@ -60,16 +70,25 @@ const InvoiceGenerator = () => {
   const [isDarkPreview, setIsDarkPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [clients, setClients] = useState<ClientDetails[]>([]);
+  const [clients, setClients] = useState<DatabaseClient[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   
   const [clientDetails, setClientDetails] = useState<ClientDetails>({
     id: "",
+    uuid: "",
     name: "",
     email: "",
     phone: "",
     address: "",
+    clientId: "",
   });
+
+  const [invoiceId, setInvoiceId] = useState<string>("");
+  const [invoiceSequences, setInvoiceSequences] = useState<{
+    clientSequence: number;
+    globalSequence: number;
+    financialYear: string;
+  } | null>(null);
 
   const [services, setServices] = useState<ServiceItem[]>(defaultServices);
   
@@ -86,31 +105,59 @@ const InvoiceGenerator = () => {
   const fetchClients = async () => {
     const { data, error } = await supabase
       .from('clients')
-      .select('id, company_name, contact_email');
+      .select('id, company_name, contact_email, phone, address');
     
     if (!error && data) {
       setClients(data.map(c => ({
-        id: c.id,
-        name: c.company_name || 'Unnamed Client',
-        email: c.contact_email || '',
-        phone: '',
-        address: '',
+        ...c,
+        client_id: (c as any).client_id || null,
       })));
     }
   };
 
-  const handleClientSelect = (clientId: string) => {
-    setSelectedClientId(clientId);
-    const client = clients.find(c => c.id === clientId);
+  const handleClientSelect = async (clientUuid: string) => {
+    setSelectedClientId(clientUuid);
+    const client = clients.find(c => c.id === clientUuid);
     if (client) {
-      setClientDetails(client);
+      setClientDetails({
+        id: client.client_id || '',
+        uuid: client.id,
+        name: client.company_name || 'Unnamed Client',
+        email: client.contact_email || '',
+        phone: client.phone || '',
+        address: client.address || '',
+        clientId: client.client_id || `TEMP-${client.id.substring(0, 8).toUpperCase()}`,
+      });
+
+      // Generate Invoice ID using database function
+      try {
+        const clientIdToUse = client.client_id || `TEMP-${client.id.substring(0, 8).toUpperCase()}`;
+        
+        const { data: invoiceData, error: invoiceError } = await supabase
+          .rpc('generate_invoice_id', {
+            p_client_uuid: client.id,
+            p_client_id: clientIdToUse,
+            p_version: 1,
+            p_date: new Date().toISOString().split('T')[0]
+          });
+
+        if (invoiceError) {
+          console.error('Error generating invoice ID:', invoiceError);
+          setInvoiceId(`INV-${format(new Date(), "yyyyMMdd")}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
+        } else if (invoiceData && invoiceData.length > 0) {
+          setInvoiceId(invoiceData[0].invoice_id);
+          setInvoiceSequences({
+            clientSequence: invoiceData[0].client_sequence,
+            globalSequence: invoiceData[0].global_sequence,
+            financialYear: invoiceData[0].financial_year
+          });
+        }
+      } catch (e) {
+        console.error("Error generating invoice ID", e);
+        setInvoiceId(`INV-${Date.now()}`);
+      }
     }
   };
-
-  const invoiceId = useMemo(() => {
-    const date = new Date();
-    return `INV-${format(date, "yyyyMMdd")}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-  }, []);
 
   const dueDate = useMemo(() => {
     return addDays(new Date(), settings.paymentTermsDays);
@@ -181,16 +228,32 @@ const InvoiceGenerator = () => {
         return;
       }
 
+      const servicesData = services.map(s => ({
+        description: s.name,
+        amount: s.price * s.quantity,
+        price: s.price,
+        quantity: s.quantity
+      }));
+
       const { error } = await supabase
         .from('invoices')
         .insert({
           client_id: selectedClientId,
           project_id: projects[0].id,
-          amount: calculations.totalUSD,
+          amount: calculations.subtotal,
           currency: 'USD',
           status: 'pending',
           due_date: dueDate.toISOString(),
-        });
+          invoice_id: invoiceId,
+          version: 1,
+          client_sequence: invoiceSequences?.clientSequence || 1,
+          global_sequence: invoiceSequences?.globalSequence || 1,
+          financial_year: invoiceSequences?.financialYear || '',
+          tax: calculations.gstAmount,
+          total: calculations.totalUSD,
+          services: servicesData,
+          tax_percent: settings.gstPercentage,
+        } as any);
 
       if (error) throw error;
 
@@ -229,6 +292,10 @@ const InvoiceGenerator = () => {
           amount: calculations.totalUSD.toFixed(2),
           currency: 'USD',
           validUntil: format(dueDate, "MMMM d, yyyy"),
+          services: services.map(s => ({
+            description: s.name,
+            amount: s.price * s.quantity
+          }))
         }
       });
 
@@ -294,7 +361,7 @@ const InvoiceGenerator = () => {
             >
               <div>
                 <h1 className="text-3xl font-bold text-foreground">Invoice Generator</h1>
-                <p className="text-muted-foreground mt-1">Create and export professional invoices</p>
+                <p className="text-muted-foreground mt-1">Create and export professional invoices - {invoiceId || 'Select a client'}</p>
               </div>
               <div className="flex items-center gap-3">
                 <Button
@@ -353,7 +420,7 @@ const InvoiceGenerator = () => {
                         <SelectContent>
                           {clients.map((client) => (
                             <SelectItem key={client.id} value={client.id}>
-                              {client.name}
+                              {client.company_name || 'Unnamed Client'} {client.client_id ? `(${client.client_id})` : ''}
                             </SelectItem>
                           ))}
                         </SelectContent>

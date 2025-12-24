@@ -18,7 +18,7 @@ const About = lazy(() => import("./pages/About"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Login = lazy(() => import("./pages/Login"));
-const AdminLogin = lazy(() => import("./pages/AdminLogin"));
+// AdminLogin removed - using unified Login page
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const QuotationGenerator = lazy(() => import("./pages/admin/QuotationGenerator"));
 const InvoiceGenerator = lazy(() => import("./pages/admin/InvoiceGenerator"));
@@ -57,7 +57,8 @@ const App = () => (
                   <Route path="/pricing" element={<Pricing />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/user-login" element={<Login />} />
-                  <Route path="/admin" element={<AdminLogin />} />
+                  <Route path="/admin" element={<Login />} />
+                  <Route path="/admin-login" element={<Login />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
 
@@ -83,6 +84,14 @@ const App = () => (
                     element={
                       <AdminRoute>
                         <QuotationGenerator />
+                      </AdminRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/invoice-generator"
+                    element={
+                      <AdminRoute>
+                        <InvoiceGenerator />
                       </AdminRoute>
                     }
                   />
