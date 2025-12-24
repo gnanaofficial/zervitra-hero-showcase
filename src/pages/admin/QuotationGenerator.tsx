@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { generateQuotationId } from "@/lib/id-generator";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -15,9 +16,9 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Plus, 
-  Trash2, 
+import {
+  Plus,
+  Trash2,
   Printer,
   Moon,
   Zap,
@@ -48,11 +49,16 @@ interface ClientDetails {
   email: string;
 }
 
+import { SignaturePad } from "@/components/ui/SignaturePad";
+
 interface QuotationSettings {
   gstPercentage: number;
   exchangeRate: number;
   validityDays: number;
   advancePercentage: number;
+  signatoryName: string;
+  signatoryRole: string;
+  signatureImage?: string | null;
 }
 
 interface DatabaseClient {
@@ -89,23 +95,28 @@ const QuotationGenerator = () => {
   const [isSending, setIsSending] = useState(false);
   const [clients, setClients] = useState<DatabaseClient[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
-  
+
   const [clientDetails, setClientDetails] = useState<ClientDetails>({
     id: "",
-    name: "Sandeep Goud",
-    phone: "+919951999114",
-    address: "Settipalli, kamam dist",
+    name: "",
+    phone: "",
+    address: "",
     clientId: "Z0701-IND-2509",
     email: "",
   });
 
+  const [quotationId, setQuotationId] = useState<string>("");
+
   const [services, setServices] = useState<ServiceItem[]>(defaultServices);
-  
+
   const [settings, setSettings] = useState<QuotationSettings>({
     gstPercentage: 0,
     exchangeRate: 87.05,
     validityDays: 7,
     advancePercentage: 67,
+    signatoryName: "K.Gnana Sekhar",
+    signatoryRole: "MANAGER",
+    signatureImage: "/src/Resources/default-signature.png",
   });
 
   const [selectedAddons, setSelectedAddons] = useState<string[]>(complimentaryAddons);
@@ -118,7 +129,7 @@ const QuotationGenerator = () => {
     const { data, error } = await supabase
       .from('clients')
       .select('id, company_name, contact_email');
-    
+
     if (!error && data) {
       setClients(data);
     }
@@ -135,13 +146,36 @@ const QuotationGenerator = () => {
         email: client.contact_email || '',
         clientId: `Z-${client.id.substring(0, 8).toUpperCase()}`,
       }));
+
+      // Generate new Quotation ID
+      const generateId = async () => {
+        try {
+          const { data: clientData } = await supabase
+            .from('clients')
+            .select('project_code, platform_code, client_sequence_number, country_code')
+            .eq('id', clientId)
+            .single();
+
+          if (clientData && clientData.client_sequence_number) {
+            const pCode = clientData.project_code || 'E';
+            const plCode = clientData.platform_code || 'W';
+            const seq = (clientData.client_sequence_number || 1).toString().padStart(2, '0');
+            const baseId = `${pCode}${plCode}7${seq}`;
+
+            const constructedClientId = `${baseId}-IND-25C`;
+            const newQuoteId = await generateQuotationId(constructedClientId);
+            setQuotationId(newQuoteId);
+          } else {
+            setQuotationId(`QN1-GEN-${Date.now().toString().slice(-4)}`);
+          }
+        } catch (e) {
+          console.error("Error generating quotation ID", e);
+          setQuotationId(`QN-${Date.now()}`);
+        }
+      };
+      generateId();
     }
   };
-
-  const quotationId = useMemo(() => {
-    const date = new Date();
-    return `${format(date, "ddMM")}-Z0701-QN01`;
-  }, []);
 
   const calculations = useMemo(() => {
     const subtotal = services.reduce((acc, service) => {
@@ -184,7 +218,7 @@ const QuotationGenerator = () => {
   };
 
   const handleServiceChange = (id: string, field: keyof ServiceItem, value: any) => {
-    setServices(services.map(s => 
+    setServices(services.map(s =>
       s.id === id ? { ...s, [field]: value } : s
     ));
   };
@@ -194,6 +228,14 @@ const QuotationGenerator = () => {
       toast({
         title: "Error",
         description: "Please select a client first",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (!quotationId) {
+      toast({
+        title: "Error",
+        description: "Quotation ID could not be generated. Please try again or select a different client.",
         variant: "destructive"
       });
       return;
@@ -226,6 +268,7 @@ const QuotationGenerator = () => {
           amount: calculations.netPayableUSD,
           currency: 'USD',
           status: 'pending',
+          quotation_id: quotationId,
         });
 
       if (error) throw error;
@@ -254,11 +297,19 @@ const QuotationGenerator = () => {
       });
       return;
     }
+    if (!quotationId) {
+      toast({
+        title: "Error",
+        description: "Quotation ID is missing, cannot send email.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setIsSending(true);
     try {
       const validUntil = format(addDays(new Date(), settings.validityDays), "MMMM d, yyyy");
-      
+
       const response = await supabase.functions.invoke('send-quotation-email', {
         body: {
           to: clientDetails.email,
@@ -267,6 +318,8 @@ const QuotationGenerator = () => {
           amount: calculations.netPayableUSD.toFixed(2),
           currency: 'USD',
           validUntil: validUntil,
+          signatoryName: settings.signatoryName,
+          signatoryRole: settings.signatoryRole,
         }
       });
 
@@ -288,34 +341,7 @@ const QuotationGenerator = () => {
   };
 
   const handlePrint = () => {
-    const printContent = printRef.current;
-    if (!printContent) return;
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Quotation - ${quotationId}</title>
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-              font-family: 'Segoe UI', system-ui, sans-serif; 
-              background: white;
-              color: #1a1a1a;
-            }
-            ${printContent.querySelector('style')?.textContent || ''}
-          </style>
-        </head>
-        <body>
-          ${printContent.innerHTML}
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    window.print();
   };
 
   const getNetPrice = (service: ServiceItem) => {
@@ -323,16 +349,20 @@ const QuotationGenerator = () => {
     return service.price * (1 - service.discount / 100);
   };
 
+  // Dynamic scale calculation for print
+  const printScale = Math.max(0.65, 0.85 - Math.max(0, services.length - 4) * 0.03);
+  const printWidth = 100 / printScale;
+
   return (
     <>
       <Helmet>
-        <title>Quotation Generator - Admin | Zervitra</title>
+        <title>{quotationId ? quotationId : "Quotation Generator - Admin | Zervitra"}</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
 
       <div className="min-h-screen bg-background text-foreground">
         <Navbar />
-        
+
         <section className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
           <div className="max-w-[1800px] mx-auto">
             <motion.div
@@ -353,17 +383,17 @@ const QuotationGenerator = () => {
                 >
                   <Moon className="h-4 w-4" />
                 </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={handleSaveQuotation} 
+                <Button
+                  variant="outline"
+                  onClick={handleSaveQuotation}
                   disabled={isSaving}
                   className="gap-2"
                 >
                   {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   Save
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleSendEmail}
                   disabled={isSending}
                   className="gap-2"
@@ -424,6 +454,14 @@ const QuotationGenerator = () => {
                           placeholder="Z0701-IND-2509"
                         />
                       </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Quotation ID</Label>
+                      <Input
+                        value={quotationId}
+                        onChange={(e) => setQuotationId(e.target.value)}
+                        placeholder="QN1-..."
+                      />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -564,6 +602,48 @@ const QuotationGenerator = () => {
                         />
                       </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Signatory Name</Label>
+                        <Input
+                          value={settings.signatoryName ?? "K.Gnana Sekhar"}
+                          onChange={(e) => setSettings({ ...settings, signatoryName: e.target.value })}
+                          placeholder="K.Gnana Sekhar"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Signatory Role</Label>
+                        <Input
+                          value={settings.signatoryRole ?? "MANAGER"}
+                          onChange={(e) => setSettings({ ...settings, signatoryRole: e.target.value })}
+                          placeholder="MANAGER"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Digital Signature (Draw below)</Label>
+                      <SignaturePad
+                        initialData={settings.signatureImage}
+                        onSave={(data) => setSettings({ ...settings, signatureImage: data })}
+                      />
+                      <div className="text-xs text-muted-foreground text-center my-2">- OR -</div>
+                      <Label>Upload Signature Image</Label>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        className="cursor-pointer"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setSettings({ ...settings, signatureImage: reader.result as string });
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -602,218 +682,338 @@ const QuotationGenerator = () => {
                 transition={{ delay: 0.2 }}
                 className="sticky top-24"
               >
-                <div 
-                  ref={printRef}
-                  className={`rounded-2xl shadow-2xl overflow-hidden ${isDarkPreview ? 'bg-[#1a1a2e]' : 'bg-white'}`}
-                  style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}
-                >
-                  <style>{`
-                    .quotation-preview { font-family: 'Segoe UI', system-ui, sans-serif; }
-                    .quotation-preview table { width: 100%; border-collapse: collapse; }
-                    .quotation-preview th, .quotation-preview td { padding: 12px 16px; text-align: left; }
+                <style>{`
+                    .quotation-preview { font-family: 'Inter', system-ui, sans-serif; background-color: #f3f4f6; color: #1a1a1a; padding: 40px; }
+                    .main-card { background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); overflow: hidden; max-width: 800px; margin: 0 auto; position: relative; }
+                    
+                    /* Header */
+                    .quotation-header { background-color: #000; color: white; padding: 40px; display: flex; justify-content: space-between; align-items: flex-start; }
+                    .logo-box { display: flex; align-items: center; gap: 16px; }
+                    .logo-img { height: 48px; width: auto; }
+                    .logo-title { font-size: 28px; font-weight: 800; letter-spacing: 0.5px; line-height: 1; }
+                    .logo-sub { font-size: 8px; color: #aaa; letter-spacing: 1.5px; margin-top: 6px; font-weight: 600; }
+                    
+                    .meta-info { text-align: right; font-size: 11px; font-weight: 700; }
+                    .meta-row { margin-bottom: 6px; display: flex; justify-content: flex-end; gap: 8px; }
+                    .meta-label { color: #888; }
+                    
+                    /* Client Bar */
+                    .client-bar { background-color: #1a1a1a; padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 10; margin-top: -1px; }
+                    .client-pill-container { display: flex; align-items: center; gap: 12px; }
+                    .client-to-label { color: #888; font-size: 12px; }
+                    .client-pill { background-color: #222; color: white; padding: 8px 24px; border-radius: 50px; font-size: 18px; font-weight: 700; border: 1px solid #333; }
+                    .client-contact { text-align: right; color: white; font-size: 11px; font-weight: 600; line-height: 1.5; }
+                    
+                    /* Title Strip */
+                    .title-strip { background: #4338ca; background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%); padding: 12px; margin: 0; text-align: center; border-radius: 0 0 40px 40px; }
+                    .title-text { color: white; font-size: 26px; font-weight: 800; text-transform: uppercase; letter-spacing: 4px; }
+                    
+                    /* Table */
+                    .table-wrapper { padding: 0 40px; margin-bottom: 30px; margin-top: 40px; }
+                    .q-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+                    .q-table th { background-color: #1a1a1a; color: white; padding: 14px 20px; font-size: 13px; font-weight: 700; text-transform: uppercase; text-align: left; }
+                    .q-table th:first-child { border-top-left-radius: 8px; }
+                    .q-table th:last-child { border-top-right-radius: 8px; text-align: right; }
+                    .q-table th:not(:first-child):not(:last-child) { text-align: center; }
+                    
+                    .q-table td { padding: 16px 20px; border-bottom: 1px solid #eee; font-size: 14px; font-weight: 600; color: #333; }
+                    .q-table tr:nth-child(even) { background-color: #f9fafb; }
+                    .q-table td:not(:first-child):not(:last-child) { text-align: center; }
+                    .q-table td:last-child { text-align: right; font-weight: 800; }
+                    
+                    /* Boxes */
+                    .content-grid { display: grid; grid-template-columns: 1fr 280px; gap: 30px; padding: 0 40px; margin-bottom: 40px; }
+                    .info-box { background: #f9fafb; border-radius: 12px; padding: 24px; border: 1px solid #eee; }
+                    .box-title { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
+                    .notes-list { list-style: none; padding: 0; margin: 0; font-size: 10px; color: #4b5563; line-height: 1.8; }
+                    .notes-list li { margin-bottom: 6px; display: flex; gap: 8px; }
+                    .bullet { width: 4px; height: 4px; background: #9ca3af; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+                    
+                    .total-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 10px; font-weight: 600; }
+                    .total-val { font-weight: 700; }
+                    .final-total { border-top: 1px solid #e5e7eb; margin-top: 16px; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; }
+                    .final-label { font-size: 15px; font-weight: 800; color: #1f2937; }
+                    .final-amount { font-size: 24px; font-weight: 800; color: #111; }
+                    
+                    .inr-box { background: #eff6ff; border-radius: 8px; padding: 16px; text-align: center; margin-top: 16px; }
+                    .inr-label { font-size: 10px; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px; }
+                    .inr-amount { font-size: 20px; font-weight: 800; color: #2563eb; }
+                    
+                    /* Footer Cards */
+                    .footer-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; padding: 0 40px 40px; }
+                    .footer-card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; height: 100%; display: flex; flex-direction: column; }
+                    .fc-title { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+                    .fc-dot { width: 6px; height: 6px; border-radius: 50%; }
+                    
+                    .terms-content { font-size: 10px; color: #4b5563; }
+                    .term-item { margin-bottom: 12px; }
+                    .term-head { font-weight: 700; color: #111; margin-bottom: 4px; }
+                    
+                    .addons-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+                    .addon-tag { display: flex; align-items: center; gap: 8px; font-size: 10px; color: #374151; background: #fff; border: 1px solid #eee; padding: 8px 12px; border-radius: 6px; }
+                    
+                    .sig-area { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; flex: 1; }
+                    .sig-draw { font-family: 'Brush Script MT', cursive; font-size: 32px; color: #111; margin-bottom: 12px; transform: rotate(-5deg); }
+                    .sig-line { width: 100%; height: 1px; background: #e5e7eb; margin: 12px 0; }
+                    .sig-name { font-size: 13px; font-weight: 800; text-transform: uppercase; }
+                    .sig-role { background: #f3f4f6; color: #374151; font-size: 9px; font-weight: 700; padding: 4px 12px; border-radius: 20px; margin-top: 6px; display: inline-block; }
+                    
+                    .thanks-strip { background: #e5e7eb; padding: 16px; text-align: center; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+                    
+                    @media print {
+                      @page { size: A4 portrait; margin: 0; }
+                      
+                      html, body {
+                        height: 10mm; /* Collapse original content */
+                        overflow: hidden !important;
+                        background: #fff !important;
+                      }
+                      
+                      body * {
+                        visibility: hidden;
+                      }
+                      
+                      /* Container forces single page view */
+                      .quotation-preview { 
+                        visibility: visible !important;
+                        position: fixed !important;
+                        left: 0;
+                        top: 0;
+                        width: 100vw;
+                        height: 100vh;
+                        padding: 0 !important;
+                        background: white !important;
+                        z-index: 99999;
+                        display: flow-root; /* Changed from flex to allow normal flow */
+                      }
+                      
+                      .quotation-preview * { 
+                        visibility: visible !important; 
+                      }
+                      
+                      .main-card {
+                        visibility: visible !important;
+                        position: relative;
+                        width: ${printWidth}% !important; /* Full Bleed Compensated Width */
+                        max-width: none !important;
+                        margin: 0 !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                        border-radius: 0 !important;
+                        
+                        transform: scale(${printScale});
+                        transform-origin: top left; /* Scale from top-left corner */
+                      }
+
+                      /* Full Bleed Header Section */
+                      .quotation-header {
+                        width: 100% !important;
+                        padding: 30px 50px !important;
+                        border-radius: 0 !important;
+                      }
+                      .client-bar {
+                        width: 100% !important;
+                        padding: 15px 50px !important;
+                      }
+                      .title-strip {
+                        width: 100% !important;
+                        border-radius: 0 0 40px 40px !important; /* Keep the 'tongue' style */
+                        margin-bottom: 20px !important;
+                      }
+
+                      /* Inset Content Section */
+                      .table-wrapper {
+                        margin: 40px 50px 20px 50px !important; /* Add Side Margins to Inset */
+                        padding: 0 !important;
+                      }
+                      .content-grid {
+                        margin: 0 50px 30px 50px !important; /* Add Side Margins to Inset */
+                        padding: 0 !important;
+                      }
+                      .footer-grid {
+                        margin: 0 50px 30px 50px !important; /* Add Side Margins to Inset */
+                        padding: 0 !important; 
+                      }
+                      .thanks-strip {
+                        margin: 0 !important;
+                      }
+                      
+                      /* Print Font Size Overrides for Header */
+                      .meta-info { font-size: 15px !important; }
+                      .meta-row { gap: 12px !important; margin-bottom: 8px !important; }
+                      .meta-label { font-size: 15px !important; }
+                      .logo-sub { font-size: 15px !important; }
+                      .client-contact { font-size: 15px !important; line-height: 1.6 !important; }
+                      .client-pill { font-size: 24px !important; padding: 10px 30px !important; }
+                      
+                      /* Ensure text is black for clarity */
+                      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    }
                   `}</style>
-                  
-                  <div className={`quotation-preview ${isDarkPreview ? 'text-gray-100' : 'text-gray-900'}`}>
+
+                <div className="quotation-preview">
+                  <div className="main-card">
                     {/* Header */}
-                    <div className="bg-[#1e1e3f] text-white p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-[#5956e9] rounded-xl flex items-center justify-center">
-                            <Zap className="w-6 h-6 text-white" />
-                          </div>
-                          <div>
-                            <h2 className="text-2xl font-bold tracking-wider">ZERVITRA</h2>
-                            <p className="text-xs text-gray-400 tracking-widest">ZERO BEGINS. VISION LEADS. RESULTS LAST.</p>
-                          </div>
+                    <div className="quotation-header">
+                      <div className="logo-box">
+                        <img src="/src/Resources/logo/zervimain.svg" alt="ZERVITRA" className="logo-img" style={{ height: '60px', width: 'auto' }} />
+                      </div>
+                      <div className="meta-info">
+                        <div className="meta-row">
+                          <span className="meta-label">QUOTATION ID :</span>
+                          <span>{quotationId}</span>
                         </div>
-                        <div className="text-right text-sm">
-                          <div className="flex items-center gap-2 justify-end">
-                            <span className="text-gray-400">QUOTATION ID :</span>
-                            <span className="font-bold">{quotationId}</span>
-                          </div>
-                          <div className="flex items-center gap-2 justify-end">
-                            <span className="text-gray-400">CLIENT ID :</span>
-                            <span className="font-bold">{clientDetails.clientId}</span>
-                          </div>
-                          <div className="flex items-center gap-2 justify-end">
-                            <span className="text-gray-400">DATE :</span>
-                            <span className="font-bold">{format(new Date(), "dd/MMM/yy").toUpperCase()}</span>
-                          </div>
+                        <div className="meta-row">
+                          <span className="meta-label">CLIENT ID :</span>
+                          <span>{clientDetails.clientId}</span>
+                        </div>
+                        <div className="meta-row">
+                          <span className="meta-label">DATE :</span>
+                          <span>{format(new Date(), "dd/MMM/yy").toUpperCase()}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Client Info Bar */}
-                    <div className="bg-[#2d2d5a] text-white px-6 py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-400 text-sm">To</span>
-                          <div className="bg-[#3d3d6a] px-4 py-2 rounded-r-full">
-                            <span className="font-semibold text-lg">{clientDetails.name}</span>
-                          </div>
-                        </div>
-                        <div className="text-right text-sm">
-                          <div><span className="text-gray-400">Email :</span> {clientDetails.email || 'N/A'}</div>
-                          <div><span className="text-gray-400">Phone :</span> {clientDetails.phone}</div>
-                          <div><span className="text-gray-400">Address :</span> {clientDetails.address}</div>
-                        </div>
+                    {/* Client Bar */}
+                    <div className="client-bar">
+                      <div className="client-pill-container">
+                        {/* removed To label */}
+                        <div className="client-pill">{clientDetails.name}</div>
+                      </div>
+                      <div className="client-contact">
+                        <div>Phone : {clientDetails.phone}</div>
+                        <div>Address : {clientDetails.address}</div>
                       </div>
                     </div>
 
-                    {/* Quotation Title */}
-                    <div className="bg-[#1e1e3f] py-4">
-                      <h1 className="text-center text-3xl font-bold tracking-[0.3em] text-[#c8c8ff]">
-                        QUOTATION
-                      </h1>
+                    {/* Title */}
+                    <div className="title-strip">
+                      <div className="title-text">QUOTATION</div>
                     </div>
 
-                    {/* Services Table */}
-                    <div className={`p-6 ${isDarkPreview ? 'bg-[#1a1a2e]' : 'bg-white'}`}>
-                      <table className="w-full">
+                    {/* Table */}
+                    <div className="table-wrapper">
+                      <table className="q-table">
                         <thead>
-                          <tr className="bg-[#2d2d5a] text-white">
-                            <th className="py-3 px-4 text-left font-semibold">ITEM/SERVICE</th>
-                            <th className="py-3 px-4 text-center font-semibold">PRICE</th>
-                            <th className="py-3 px-4 text-center font-semibold">DISCOUNT</th>
-                            <th className="py-3 px-4 text-center font-semibold">NET</th>
+                          <tr>
+                            <th style={{ width: '45%' }}>ITEM/SERVICE</th>
+                            <th>PRICE</th>
+                            <th>DISCOUNT</th>
+                            <th>NET</th>
                           </tr>
                         </thead>
                         <tbody>
                           {services.map((service) => (
-                            <tr 
-                              key={service.id} 
-                              className={`border-b ${isDarkPreview ? 'border-gray-700' : 'border-gray-200'}`}
-                            >
-                              <td className="py-3 px-4 font-semibold">{service.name}</td>
-                              <td className="py-3 px-4 text-center">
-                                {service.isFree ? 'FREE' : `$${service.price.toFixed(2)}`}
-                              </td>
-                              <td className="py-3 px-4 text-center">
-                                {service.isFree ? 'NA' : `${service.discount.toFixed(2)}%`}
-                              </td>
-                              <td className="py-3 px-4 text-center font-bold">
-                                ${getNetPrice(service).toFixed(2)}
-                              </td>
+                            <tr key={service.id}>
+                              <td>{service.name}</td>
+                              <td>{service.isFree ? 'FREE' : `$${service.price.toFixed(2)}`}</td>
+                              <td>{service.isFree ? 'NA' : `${service.discount.toFixed(2)}%`}</td>
+                              <td>{service.isFree ? '$0.00' : `$${getNetPrice(service).toFixed(2)}`}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
+                    </div>
 
-                      {/* Notes and Summary */}
-                      <div className="grid grid-cols-2 gap-6 mt-6">
-                        {/* Important Notes */}
-                        <div className={`p-4 rounded-lg border ${isDarkPreview ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
-                          <div className="flex items-center gap-2 mb-3">
-                            <Info className="w-4 h-4 text-muted-foreground" />
-                            <h4 className="font-semibold text-sm uppercase tracking-wider">Important Notes</h4>
-                          </div>
-                          <ul className="space-y-2 text-sm text-muted-foreground">
-                            <li>• USD Values are approximate using ₹ {settings.exchangeRate} = $ 1. Per-line USD may not sum exactly due to rounding.</li>
-                            <li>• The total after discount is exactly ₹{calculations.netPayableINR.toFixed(0)}/- ($ {calculations.netPayableUSD.toFixed(2)}).</li>
-                            <li>• Project timeline will be shared after confirmation of order.</li>
-                          </ul>
+                    {/* Info & Totals Grid */}
+                    <div className="content-grid">
+                      <div className="info-box">
+                        <div className="box-title">
+                          <Info className="w-3 h-3" /> IMPORTANT NOTES
+                        </div>
+                        <ul className="notes-list">
+                          <li><div className="bullet"></div> USD Values are approximate using ₹ {settings.exchangeRate} = $ 1.</li>
+                          <li><div className="bullet"></div> The total after discount is exactly ₹{calculations.netPayableINR.toFixed(0)}/- ({calculations.netPayableINR.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}).</li>
+                          <li><div className="bullet"></div> Project timeline will be shared after confirmation of order.</li>
+                        </ul>
+                      </div>
+
+                      <div className="info-box" style={{ background: 'white', borderColor: '#e5e7eb' }}>
+                        <div className="total-row">
+                          <span style={{ color: '#6b7280' }}>Subtotal</span>
+                          <span className="total-val">${(calculations.subtotal + calculations.totalDiscount).toFixed(2)}</span>
+                        </div>
+                        <div className="total-row" style={{ color: '#ef4444' }}>
+                          <span>Discount</span>
+                          <span className="total-val">-${calculations.totalDiscount.toFixed(2)}</span>
+                        </div>
+                        <div className="total-row">
+                          <span style={{ color: '#6b7280' }}>GST ({settings.gstPercentage}%)</span>
+                          <span className="total-val">${calculations.gstAmount.toFixed(2)}</span>
                         </div>
 
-                        {/* Summary */}
-                        <div className={`p-4 rounded-lg border ${isDarkPreview ? 'border-gray-700' : 'border-gray-200'}`}>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span>Subtotal</span>
-                              <span className="font-bold">${(calculations.subtotal + calculations.totalDiscount).toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between text-red-500">
-                              <span>Discount</span>
-                              <span>-${calculations.totalDiscount.toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>GST ({settings.gstPercentage}%)</span>
-                              <span>${calculations.gstAmount.toFixed(2)}</span>
-                            </div>
-                            <Separator className="my-2" />
-                            <div className="flex justify-between font-bold text-base">
-                              <span>Net Payable (USD)</span>
-                              <span>${calculations.netPayableUSD.toFixed(2)}</span>
-                            </div>
+                        <div className="final-total">
+                          <span className="final-label">Net Payable (USD)</span>
+                          <span className="final-amount">${calculations.netPayableUSD.toFixed(2)}</span>
+                        </div>
+
+                        <div className="inr-box">
+                          <div className="inr-label">APPROXIMATE INR TOTAL</div>
+                          <div className="inr-amount">₹{calculations.netPayableINR.toLocaleString('en-IN', { maximumFractionDigits: 0 })}/-</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer Cards */}
+                    <div className="footer-grid">
+                      {/* Terms */}
+                      <div className="footer-card">
+                        <div className="fc-title">
+                          <div className="fc-dot bg-blue-500"></div> TERMS & CONDITIONS
+                        </div>
+                        <div className="terms-content">
+                          <div className="term-item">
+                            <div className="term-head">VALIDITY</div>
+                            <div>Valid for {settings.validityDays} days from issue.</div>
                           </div>
-                          
-                          <div className="mt-4 p-3 bg-[#f0f0ff] rounded-lg text-center">
-                            <div className="text-xs text-purple-600 font-semibold uppercase tracking-wider">
-                              Approximate INR Total
-                            </div>
-                            <div className="text-2xl font-bold text-purple-700">
-                              ₹{calculations.netPayableINR.toFixed(0)}/-
-                            </div>
+                          <div className="term-item">
+                            <div className="term-head">SCOPE</div>
+                            <div>Limited to quoted services.</div>
+                          </div>
+                          <div className="term-item">
+                            <div className="term-head">PAYMENT</div>
+                            <div>{settings.advancePercentage}% advance to confirm.</div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Footer Sections */}
-                      <div className="grid grid-cols-3 gap-6 mt-8">
-                        {/* Terms & Conditions */}
-                        <div>
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                            <h4 className="font-semibold text-sm uppercase tracking-wider">Terms & Conditions</h4>
-                          </div>
-                          <div className={`p-4 rounded-lg border space-y-3 ${isDarkPreview ? 'border-gray-700' : 'border-gray-200'}`}>
-                            <div>
-                              <div className="font-semibold text-sm">VALIDITY</div>
-                              <p className="text-xs text-muted-foreground">Valid for {settings.validityDays} days from issue. Prices subject to revision thereafter.</p>
-                            </div>
-                            <div>
-                              <div className="font-semibold text-sm">SCOPE</div>
-                              <p className="text-xs text-muted-foreground">Limited to quoted services. Additional work charged separately.</p>
-                            </div>
-                            <div>
-                              <div className="font-semibold text-sm">PAYMENT</div>
-                              <p className="text-xs text-muted-foreground">{settings.advancePercentage}% advance to confirm. Balance due upon completion.</p>
-                            </div>
-                          </div>
+                      {/* Addons */}
+                      <div className="footer-card">
+                        <div className="fc-title">
+                          <div className="fc-dot bg-green-500"></div> COMPLIMENTARY ADD-ONS
                         </div>
-
-                        {/* Complimentary Add-ons */}
-                        <div>
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <h4 className="font-semibold text-sm uppercase tracking-wider">Complimentary Add-ons</h4>
-                          </div>
-                          <div className={`p-4 rounded-lg border ${isDarkPreview ? 'border-gray-700' : 'border-gray-200'}`}>
-                            <div className="grid grid-cols-2 gap-2">
-                              {selectedAddons.map((addon) => (
-                                <div key={addon} className="flex items-center gap-2 text-xs">
-                                  <CheckCircle className="w-3 h-3 text-green-500" />
-                                  <span>{addon}</span>
-                                </div>
-                              ))}
+                        <div className="addons-grid">
+                          {selectedAddons.slice(0, 4).map(addon => (
+                            <div key={addon} className="addon-tag">
+                              <CheckCircle className="w-3 h-3 text-green-500" /> {addon}
                             </div>
-                          </div>
-                        </div>
-
-                        {/* Authorization */}
-                        <div>
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                            <h4 className="font-semibold text-sm uppercase tracking-wider">Authorization</h4>
-                          </div>
-                          <div className={`p-4 rounded-lg border text-center ${isDarkPreview ? 'border-gray-700' : 'border-gray-200'}`}>
-                            <div className="h-16 flex items-center justify-center">
-                              <div className="font-script text-2xl italic text-muted-foreground">
-                                Sekhar
-                              </div>
-                            </div>
-                            <div className="font-bold mt-2">K.GNANA SEKHAR</div>
-                            <div className={`text-xs px-3 py-1 rounded-full inline-block mt-1 ${isDarkPreview ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                              MANAGER
-                            </div>
-                          </div>
+                          ))}
                         </div>
                       </div>
 
-                      {/* Footer */}
-                      <div className="text-center mt-8 py-4 border-t border-dashed">
-                        <span className="font-semibold">THANKS FOR CHOOSING US</span>
-                        <span className="ml-2">🤗</span>
+                      {/* Auth */}
+                      <div className="footer-card">
+                        <div className="fc-title">
+                          <div className="fc-dot bg-purple-500"></div> AUTHORIZATION
+                        </div>
+                        <div className="sig-area">
+                          {settings.signatureImage && (
+                            <img
+                              src={settings.signatureImage}
+                              alt="Signature"
+                              className="h-[80px] w-auto mb-2 object-contain mix-blend-multiply"
+                              style={{ mixBlendMode: 'multiply' }}
+                            />
+                          )}
+                          <div className="sig-line"></div>
+                          <div className="sig-name">{settings.signatoryName}</div>
+                          <div className="sig-role">{settings.signatoryRole}</div>
+                        </div>
                       </div>
+                    </div>
+
+                    <div className="thanks-strip">
+                      THANKS FOR CHOOSING US <span className="text-lg">😊</span>
                     </div>
                   </div>
                 </div>

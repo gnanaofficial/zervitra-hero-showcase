@@ -25,6 +25,7 @@ import { ExpandedViewContainer } from "@/components/dashboard/ExpandedViewContai
 import { ExpandedProjectsTable } from "@/components/dashboard/ExpandedProjectsTable";
 import { ExpandedQuotationsTable } from "@/components/dashboard/ExpandedQuotationsTable";
 import { ExpandedInvoicesTable } from "@/components/dashboard/ExpandedInvoicesTable";
+import { CreateClientDialog } from "@/components/dashboard/CreateClientDialog";
 import {
   exportProjectsToCSV,
   exportProjectsToPDF,
@@ -127,7 +128,7 @@ const AdminDashboard = () => {
 
       <div className="min-h-screen bg-background text-foreground">
         <Navbar />
-        
+
         {/* Header */}
         <section className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
@@ -150,10 +151,7 @@ const AdminDashboard = () => {
                     <FilePlus className="w-5 h-5" />
                     Create Quotation
                   </Button>
-                  <Button size="lg" variant="outline" className="gap-2">
-                    <UserPlus className="w-5 h-5" />
-                    Invite Client
-                  </Button>
+                  <CreateClientDialog onSuccess={refreshData} />
                 </div>
               </div>
               <p className="text-xl text-muted-foreground mb-8">
@@ -167,7 +165,7 @@ const AdminDashboard = () => {
         <section className="py-8 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-              
+
               {/* Total Clients */}
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
@@ -268,7 +266,7 @@ const AdminDashboard = () => {
         <section className="py-8 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              
+
               {/* Recent Projects */}
               <motion.div
                 initial={{ opacity: 0, x: -30 }}
@@ -282,7 +280,7 @@ const AdminDashboard = () => {
                     View All
                   </Button>
                 </div>
-                
+
                 <div className="space-y-4">
                   {projects.slice(0, 5).map((project) => (
                     <div key={project.id} className="flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border/30">
@@ -301,7 +299,7 @@ const AdminDashboard = () => {
                       </div>
                     </div>
                   ))}
-                  
+
                   {projects.length === 0 && (
                     <div className="text-center py-8">
                       <FolderOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -326,7 +324,7 @@ const AdminDashboard = () => {
                       View All
                     </Button>
                   </div>
-                  
+
                   <div className="space-y-3">
                     {quotations.slice(0, 3).map((quote) => (
                       <div key={quote.id} className="flex items-center justify-between p-3 rounded-xl bg-background/50 border border-border/30">
@@ -348,7 +346,7 @@ const AdminDashboard = () => {
                         </div>
                       </div>
                     ))}
-                    
+
                     {quotations.length === 0 && (
                       <div className="text-center py-6">
                         <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
@@ -371,7 +369,7 @@ const AdminDashboard = () => {
                       View All
                     </Button>
                   </div>
-                  
+
                   <div className="space-y-3">
                     {invoices.slice(0, 3).map((invoice) => (
                       <div key={invoice.id} className="flex items-center justify-between p-3 rounded-xl bg-background/50 border border-border/30">
@@ -393,7 +391,7 @@ const AdminDashboard = () => {
                         </div>
                       </div>
                     ))}
-                    
+
                     {invoices.length === 0 && (
                       <div className="text-center py-6">
                         <CreditCard className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
@@ -408,13 +406,13 @@ const AdminDashboard = () => {
         </section>
 
         {/* Expanded View */}
-        <ExpandedViewContainer 
+        <ExpandedViewContainer
           isOpen={expandedView !== null}
           onClose={() => setExpandedView(null)}
           title={
             expandedView === "projects" ? "All Projects" :
-            expandedView === "quotations" ? "All Quotations" :
-            "All Invoices"
+              expandedView === "quotations" ? "All Quotations" :
+                "All Invoices"
           }
           description="View and manage all records"
         >

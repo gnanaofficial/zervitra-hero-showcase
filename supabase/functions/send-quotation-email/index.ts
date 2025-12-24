@@ -1,12 +1,9 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
+/// <reference path="./types.d.ts" />
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
-const corsHeaders = {
+const CorsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 interface QuotationEmailRequest {
@@ -16,81 +13,190 @@ interface QuotationEmailRequest {
   amount: string;
   currency: string;
   validUntil: string;
-  pdfBase64?: string;
+  signatoryName?: string;
+  signatoryRole?: string;
 }
 
-const handler = async (req: Request): Promise<Response> => {
+// Function to send email using SendGrid API
+async function sendEmailWithSendGrid(
+  to: string,
+  subject: string,
+  htmlContent: string
+) {
+  const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
+  const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "noreply@zervitra.com";
+
+  if (!SENDGRID_API_KEY) {
+    throw new Error("SENDGRID_API_KEY is not configured");
+  }
+
+  const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${SENDGRID_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      personalizations: [
+        {
+          to: [{ email: to }],
+          subject: subject,
+        },
+      ],
+      from: {
+        email: FROM_EMAIL,
+        name: "Zervitra",
+      },
+      content: [
+        {
+          type: "text/html",
+          value: htmlContent,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`SendGrid API error: ${response.status} - ${errorText}`);
+  }
+
+  return {
+    success: true,
+    messageId: response.headers.get("x-message-id"),
+  };
+}
+
+Deno.serve(async (req: Request) => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: CorsHeaders
+    });
   }
 
   try {
-    const { to, clientName, quotationId, amount, currency, validUntil }: QuotationEmailRequest = await req.json();
+    const {
+      to,
+      clientName,
+      quotationId,
+      amount,
+      currency,
+      validUntil,
+      signatoryName = "K.Gnana Sekhar",
+      signatoryRole = "MANAGER"
+    }: QuotationEmailRequest = await req.json();
 
-    const emailResponse = await resend.emails.send({
-      from: "Zervitra <onboarding@resend.dev>",
-      to: [to],
-      subject: `Your Quotation from Zervitra - ${quotationId}`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #1e1e3f 0%, #5956e9 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center; }
-            .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 12px 12px; }
-            .amount { font-size: 32px; font-weight: bold; color: #5956e9; margin: 20px 0; }
-            .details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-            .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1 style="margin: 0;">ZERVITRA</h1>
-              <p style="margin: 10px 0 0; opacity: 0.9;">ZERO BEGINS. VISION LEADS. RESULTS LAST.</p>
-            </div>
-            <div class="content">
-              <h2>Hello ${clientName},</h2>
-              <p>Thank you for your interest in our services. Please find your quotation details below:</p>
-              
-              <div class="details">
-                <p><strong>Quotation ID:</strong> ${quotationId}</p>
-                <p><strong>Valid Until:</strong> ${validUntil}</p>
-                <div class="amount">${currency} ${amount}</div>
-              </div>
-              
-              <p>If you have any questions or would like to proceed, please don't hesitate to contact us.</p>
-              
-              <p>Best regards,<br><strong>The Zervitra Team</strong></p>
-            </div>
-            <div class="footer">
-              <p>© ${new Date().getFullYear()} Zervitra. All rights reserved.</p>
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+          .container { max-width: 800px; margin: 20px auto; background: white; border-radius: 0; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          
+          .header { background-color: #000; color: white; padding: 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #4f46e5; }
+          .logo { font-size: 28px; font-weight: 800; letter-spacing: 1px; }
+          .logo span { color: #4f46e5; }
+          .quote-id { text-align: right; }
+          .quote-id div { margin-bottom: 5px; font-size: 14px; color: #ccc; }
+          .quote-id span { color: white; font-weight: bold; }
+          
+          .client-strip { background-color: #1a1a1a; color: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; }
+          .client-name { font-size: 24px; font-weight: bold; background: #333; padding: 10px 20px; border-radius: 50px; display: inline-block; }
+          
+          .content { padding: 40px; }
+          .big-title { text-align: center; font-size: 48px; font-weight: 900; color: #4f46e5; margin: 20px 0 40px; text-transform: uppercase; letter-spacing: 2px; }
+          
+          .total-section { background-color: #1a1a1a; color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; margin-top: 20px; }
+          .total-label { font-size: 20px; font-weight: bold; text-transform: uppercase; }
+          .total-amount { font-size: 24px; font-weight: bold; color: #4f46e5; }
+          
+          .footer { padding: 40px; background-color: #f4f4f4; display: flex; justify-content: space-between; }
+          .terms { width: 60%; font-size: 12px; color: #666; }
+          .signature { text-align: center; width: 30%; }
+          .sig-name { font-size: 18px; font-weight: bold; margin-top: 10px; color: #000; }
+          .sig-role { background-color: #444; color: white; padding: 5px 15px; border-radius: 20px; font-size: 12px; display: inline-block; margin-top: 5px; }
+          
+          .btn { display: inline-block; background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">ZERVITRA</div>
+            <div class="quote-id">
+              <div>QUOTATION ID : <span>${quotationId}</span></div>
+              <div>DATE : <span>${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).toUpperCase().replace(/ /g, '/')}</span></div>
             </div>
           </div>
-        </body>
-        </html>
-      `,
-    });
+          
+          <div class="client-strip">
+            <div class="client-name">${clientName}</div>
+          </div>
+          
+          <div class="content">
+            <div class="big-title">Quotation</div>
+            
+            <p>Dear ${clientName},</p>
+            <p>Please find the quotation summary below. To view the full detailed quotation, please click the button.</p>
+            
+            <div class="total-section">
+              <div class="total-label">Total Payable</div>
+              <div class="total-amount">${currency} ${amount}</div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 40px;">
+              <a href="#" class="btn">View Full Quotation</a>
+            </div>
+          </div>
+          
+          <div class="footer">
+            <div class="terms">
+              <strong>TERMS & CONDITIONS</strong><br>
+              Valid for ${validUntil}.<br>
+              Subject to revision thereafter.
+            </div>
+            <div class="signature">
+              <div class="sig-name">${signatoryName}</div>
+              <div class="sig-role">${signatoryRole}</div>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const emailResponse = await sendEmailWithSendGrid(
+      to,
+      `Quotation ${quotationId} from Zervitra`,
+      htmlContent
+    );
 
     console.log("Quotation email sent successfully:", emailResponse);
 
     return new Response(JSON.stringify(emailResponse), {
       status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+      headers: {
+        "Content-Type": "application/json",
+        ...CorsHeaders
+      },
     });
   } catch (error: any) {
     console.error("Error sending quotation email:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({
+        error: error?.message || "Unknown error occurred"
+      }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: {
+          "Content-Type": "application/json",
+          ...CorsHeaders
+        },
       }
     );
   }
-};
-
-serve(handler);
+});

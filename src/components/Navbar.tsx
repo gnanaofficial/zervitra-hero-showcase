@@ -27,7 +27,7 @@ const Navbar = () => {
 
   const handleNavigation = (item: typeof navItems[0]) => {
     setIsMenuOpen(false);
-    
+
     if (item.action === "scroll") {
       if (location.pathname !== "/") {
         navigate("/#services");
@@ -51,9 +51,17 @@ const Navbar = () => {
 
   const handleAuthAction = () => {
     if (user) {
-      navigate("/dashboard");
+      // Redirect based on user role
+      if (role === 'admin') {
+        navigate("/admin/dashboard");
+      } else if (role === 'user') {
+        navigate("/client/dashboard");
+      } else {
+        // Fallback to old dashboard if role is not set
+        navigate("/dashboard");
+      }
     } else {
-      navigate(role === 'admin' ? "/admin-login" : "/user-login");
+      navigate("/login");
     }
     setIsMenuOpen(false);
   };
@@ -61,7 +69,7 @@ const Navbar = () => {
   const getRoleBadge = () => {
     if (!role) return null;
     return (
-      <Badge 
+      <Badge
         variant={role === 'admin' ? 'destructive' : 'default'}
         className="ml-2 flex items-center gap-1"
       >

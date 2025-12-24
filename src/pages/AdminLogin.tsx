@@ -114,6 +114,12 @@ const AdminLogin = () => {
                   'Sign In'
                 )}
               </Button>
+
+              <div className="text-center">
+                <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
             </form>
 
             <div className="mt-6 text-center text-sm">

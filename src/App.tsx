@@ -18,12 +18,15 @@ const About = lazy(() => import("./pages/About"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Login = lazy(() => import("./pages/Login"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const QuotationGenerator = lazy(() => import("./pages/admin/QuotationGenerator"));
 const InvoiceGenerator = lazy(() => import("./pages/admin/InvoiceGenerator"));
 const ClientDashboard = lazy(() => import("./pages/ClientDashboard"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Unauthorized = lazy(() => import("./pages/Unauthorized"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
 // Service detail pages
 const WebDevelopment = lazy(() => import("./pages/services/WebDevelopment"));
@@ -52,8 +55,12 @@ const App = () => (
                   <Route path="/about" element={<About />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/pricing" element={<Pricing />} />
-          <Route path="/login" element={<Login />} />
-                  
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/user-login" element={<Login />} />
+                  <Route path="/admin" element={<AdminLogin />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+
                   {/* Service detail pages */}
                   <Route path="/services/web-development" element={<WebDevelopment />} />
                   <Route path="/services/app-development" element={<AppDevelopment />} />
@@ -61,46 +68,46 @@ const App = () => (
                   <Route path="/services/mvp-product" element={<MVPProduct />} />
                   <Route path="/services/social-media-marketing" element={<SocialMediaMarketing />} />
                   <Route path="/services/more" element={<MoreServices />} />
-                  
+
                   {/* Protected routes - Role-based */}
-                  <Route 
-                    path="/admin/dashboard" 
+                  <Route
+                    path="/admin/dashboard"
                     element={
                       <AdminRoute>
                         <AdminDashboard />
                       </AdminRoute>
-                    } 
+                    }
                   />
-                  <Route 
-                    path="/admin/quotation-generator" 
+                  <Route
+                    path="/admin/quotation-generator"
                     element={
                       <AdminRoute>
                         <QuotationGenerator />
                       </AdminRoute>
-                    } 
+                    }
                   />
-                  <Route 
-                    path="/client/dashboard" 
+                  <Route
+                    path="/client/dashboard"
                     element={
                       <ClientRoute>
                         <ClientDashboard />
                       </ClientRoute>
-                    } 
+                    }
                   />
-                  
+
                   {/* Legacy dashboard route - redirects based on role */}
-                  <Route 
-                    path="/dashboard" 
+                  <Route
+                    path="/dashboard"
                     element={
                       <ProtectedRoute>
                         <Dashboard />
                       </ProtectedRoute>
-                    } 
+                    }
                   />
 
                   {/* Unauthorized page */}
                   <Route path="/unauthorized" element={<Unauthorized />} />
-                  
+
                   {/* Catch-all route */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
