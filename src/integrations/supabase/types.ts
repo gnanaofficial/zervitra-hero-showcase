@@ -14,48 +14,125 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_sequences: {
+        Row: {
+          client_uuid: string
+          created_at: string
+          current_value: number
+          fiscal_year: string | null
+          id: string
+          sequence_type: string
+          updated_at: string
+        }
+        Insert: {
+          client_uuid: string
+          created_at?: string
+          current_value?: number
+          fiscal_year?: string | null
+          id?: string
+          sequence_type: string
+          updated_at?: string
+        }
+        Update: {
+          client_uuid?: string
+          created_at?: string
+          current_value?: number
+          fiscal_year?: string | null
+          id?: string
+          sequence_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_sequences_client_uuid_fkey"
+            columns: ["client_uuid"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
           city: string | null
+          client_id: string | null
+          client_sequence_number: number | null
           company_name: string | null
           contact_email: string | null
           country: string | null
           created_at: string
           id: string
           phone: string | null
+          platform_code: string | null
+          project_code: string | null
           state: string | null
           updated_at: string
           user_id: string
+          year_hex: string | null
           zip: string | null
         }
         Insert: {
           address?: string | null
           city?: string | null
+          client_id?: string | null
+          client_sequence_number?: number | null
           company_name?: string | null
           contact_email?: string | null
           country?: string | null
           created_at?: string
           id?: string
           phone?: string | null
+          platform_code?: string | null
+          project_code?: string | null
           state?: string | null
           updated_at?: string
           user_id: string
+          year_hex?: string | null
           zip?: string | null
         }
         Update: {
           address?: string | null
           city?: string | null
+          client_id?: string | null
+          client_sequence_number?: number | null
           company_name?: string | null
           contact_email?: string | null
           country?: string | null
           created_at?: string
           id?: string
           phone?: string | null
+          platform_code?: string | null
+          project_code?: string | null
           state?: string | null
           updated_at?: string
           user_id?: string
+          year_hex?: string | null
           zip?: string | null
+        }
+        Relationships: []
+      }
+      global_counters: {
+        Row: {
+          counter_type: string
+          created_at: string
+          current_value: number
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          counter_type: string
+          created_at?: string
+          current_value?: number
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          counter_type?: string
+          created_at?: string
+          current_value?: number
+          id?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -93,44 +170,77 @@ export type Database = {
         Row: {
           amount: number
           client_id: string
+          client_sequence: number | null
           created_at: string
           currency: string | null
+          discount_percent: number | null
           due_date: string
+          financial_year: string | null
+          global_sequence: number | null
           id: string
+          invoice_id: string | null
+          notes: string | null
           payment_id: string | null
           payment_method: string | null
           project_id: string
           quotation_id: string | null
+          services: Json | null
           status: string
+          tax: number | null
+          tax_percent: number | null
+          total: number | null
           updated_at: string
+          version: number | null
         }
         Insert: {
           amount: number
           client_id: string
+          client_sequence?: number | null
           created_at?: string
           currency?: string | null
+          discount_percent?: number | null
           due_date: string
+          financial_year?: string | null
+          global_sequence?: number | null
           id?: string
+          invoice_id?: string | null
+          notes?: string | null
           payment_id?: string | null
           payment_method?: string | null
           project_id: string
           quotation_id?: string | null
+          services?: Json | null
           status?: string
+          tax?: number | null
+          tax_percent?: number | null
+          total?: number | null
           updated_at?: string
+          version?: number | null
         }
         Update: {
           amount?: number
           client_id?: string
+          client_sequence?: number | null
           created_at?: string
           currency?: string | null
+          discount_percent?: number | null
           due_date?: string
+          financial_year?: string | null
+          global_sequence?: number | null
           id?: string
+          invoice_id?: string | null
+          notes?: string | null
           payment_id?: string | null
           payment_method?: string | null
           project_id?: string
           quotation_id?: string | null
+          services?: Json | null
           status?: string
+          tax?: number | null
+          tax_percent?: number | null
+          total?: number | null
           updated_at?: string
+          version?: number | null
         }
         Relationships: [
           {
@@ -198,32 +308,59 @@ export type Database = {
         Row: {
           amount: number
           client_id: string
+          client_sequence: number | null
           created_at: string
           currency: string | null
+          discount_percent: number | null
+          global_sequence: number | null
           id: string
+          notes: string | null
           project_id: string
+          quotation_id: string | null
+          services: Json | null
           status: string
+          tax_percent: number | null
           updated_at: string
+          valid_until: string | null
+          version: number | null
         }
         Insert: {
           amount: number
           client_id: string
+          client_sequence?: number | null
           created_at?: string
           currency?: string | null
+          discount_percent?: number | null
+          global_sequence?: number | null
           id?: string
+          notes?: string | null
           project_id: string
+          quotation_id?: string | null
+          services?: Json | null
           status?: string
+          tax_percent?: number | null
           updated_at?: string
+          valid_until?: string | null
+          version?: number | null
         }
         Update: {
           amount?: number
           client_id?: string
+          client_sequence?: number | null
           created_at?: string
           currency?: string | null
+          discount_percent?: number | null
+          global_sequence?: number | null
           id?: string
+          notes?: string | null
           project_id?: string
+          quotation_id?: string | null
+          services?: Json | null
           status?: string
+          tax_percent?: number | null
           updated_at?: string
+          valid_until?: string | null
+          version?: number | null
         }
         Relationships: [
           {
@@ -245,19 +382,25 @@ export type Database = {
       user_roles: {
         Row: {
           created_at: string | null
+          created_by: string | null
           id: string
+          is_super_admin: boolean | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string | null
+          created_by?: string | null
           id?: string
+          is_super_admin?: boolean | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string | null
+          created_by?: string | null
           id?: string
+          is_super_admin?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -268,6 +411,54 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_client_id: {
+        Args: {
+          p_country?: string
+          p_platform_code: string
+          p_project_code: string
+        }
+        Returns: {
+          client_id: string
+          sequence_number: number
+          year_hex: string
+        }[]
+      }
+      generate_invoice_id: {
+        Args: {
+          p_client_id: string
+          p_client_uuid: string
+          p_date?: string
+          p_version?: number
+        }
+        Returns: {
+          client_sequence: number
+          financial_year: string
+          global_sequence: number
+          invoice_id: string
+        }[]
+      }
+      generate_quotation_id: {
+        Args: { p_client_id: string; p_client_uuid: string; p_version?: number }
+        Returns: {
+          client_sequence: number
+          global_sequence: number
+          quotation_id: string
+        }[]
+      }
+      get_fiscal_year: { Args: { input_date?: string }; Returns: string }
+      get_hex_month: { Args: { month_num: number }; Returns: string }
+      get_next_client_sequence: {
+        Args: {
+          p_client_uuid: string
+          p_fiscal_year?: string
+          p_sequence_type: string
+        }
+        Returns: number
+      }
+      get_next_global_counter: {
+        Args: { p_counter_type: string }
+        Returns: number
+      }
       get_next_sequence_value: {
         Args: {
           p_client_id?: string

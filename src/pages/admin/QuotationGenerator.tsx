@@ -1,5 +1,4 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { generateQuotationId } from "@/lib/id-generator";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
@@ -42,6 +41,7 @@ interface ServiceItem {
 
 interface ClientDetails {
   id: string;
+  uuid: string;
   name: string;
   phone: string;
   address: string;
@@ -65,6 +65,12 @@ interface DatabaseClient {
   id: string;
   company_name: string | null;
   contact_email: string | null;
+  client_id: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
 }
 
 const defaultServices: ServiceItem[] = [
@@ -98,14 +104,19 @@ const QuotationGenerator = () => {
 
   const [clientDetails, setClientDetails] = useState<ClientDetails>({
     id: "",
+    uuid: "",
     name: "",
     phone: "",
     address: "",
-    clientId: "Z0701-IND-2509",
+    clientId: "",
     email: "",
   });
 
   const [quotationId, setQuotationId] = useState<string>("");
+  const [quotationSequences, setQuotationSequences] = useState<{
+    clientSequence: number;
+    globalSequence: number;
+  } | null>(null);
 
   const [services, setServices] = useState<ServiceItem[]>(defaultServices);
 
@@ -128,52 +139,60 @@ const QuotationGenerator = () => {
   const fetchClients = async () => {
     const { data, error } = await supabase
       .from('clients')
-      .select('id, company_name, contact_email');
+      .select('id, company_name, contact_email, phone, address, city, state, country');
 
     if (!error && data) {
-      setClients(data);
+      // Type assertion to handle the new columns that may not be in types yet
+      setClients(data.map(c => ({
+        ...c,
+        client_id: (c as any).client_id || null,
+      })));
     }
   };
 
-  const handleClientSelect = (clientId: string) => {
-    setSelectedClientId(clientId);
-    const client = clients.find(c => c.id === clientId);
+  const handleClientSelect = async (clientUuid: string) => {
+    setSelectedClientId(clientUuid);
+    const client = clients.find(c => c.id === clientUuid);
     if (client) {
-      setClientDetails(prev => ({
-        ...prev,
-        id: client.id,
+      const fullAddress = [client.address, client.city, client.state, client.country]
+        .filter(Boolean)
+        .join(', ');
+      
+      setClientDetails({
+        id: client.client_id || '',
+        uuid: client.id,
         name: client.company_name || 'Unnamed Client',
         email: client.contact_email || '',
-        clientId: `Z-${client.id.substring(0, 8).toUpperCase()}`,
-      }));
+        phone: client.phone || '',
+        address: fullAddress,
+        clientId: client.client_id || `TEMP-${client.id.substring(0, 8).toUpperCase()}`,
+      });
 
-      // Generate new Quotation ID
-      const generateId = async () => {
-        try {
-          const { data: clientData } = await supabase
-            .from('clients')
-            .select('project_code, platform_code, client_sequence_number, country_code')
-            .eq('id', clientId)
-            .single();
+      // Generate Quotation ID using database function
+      try {
+        const clientIdToUse = client.client_id || `TEMP-${client.id.substring(0, 8).toUpperCase()}`;
+        
+        const { data: quotationData, error: quotationError } = await supabase
+          .rpc('generate_quotation_id', {
+            p_client_uuid: client.id,
+            p_client_id: clientIdToUse,
+            p_version: 1
+          });
 
-          if (clientData && clientData.client_sequence_number) {
-            const pCode = clientData.project_code || 'E';
-            const plCode = clientData.platform_code || 'W';
-            const seq = (clientData.client_sequence_number || 1).toString().padStart(2, '0');
-            const baseId = `${pCode}${plCode}7${seq}`;
-
-            const constructedClientId = `${baseId}-IND-25C`;
-            const newQuoteId = await generateQuotationId(constructedClientId);
-            setQuotationId(newQuoteId);
-          } else {
-            setQuotationId(`QN1-GEN-${Date.now().toString().slice(-4)}`);
-          }
-        } catch (e) {
-          console.error("Error generating quotation ID", e);
-          setQuotationId(`QN-${Date.now()}`);
+        if (quotationError) {
+          console.error('Error generating quotation ID:', quotationError);
+          setQuotationId(`QN1-GEN-${Date.now().toString().slice(-4)}`);
+        } else if (quotationData && quotationData.length > 0) {
+          setQuotationId(quotationData[0].quotation_id);
+          setQuotationSequences({
+            clientSequence: quotationData[0].client_sequence,
+            globalSequence: quotationData[0].global_sequence
+          });
         }
-      };
-      generateId();
+      } catch (e) {
+        console.error("Error generating quotation ID", e);
+        setQuotationId(`QN-${Date.now()}`);
+      }
     }
   };
 
@@ -260,6 +279,14 @@ const QuotationGenerator = () => {
         return;
       }
 
+      const servicesData = services.map(s => ({
+        description: s.name,
+        amount: s.isFree ? 0 : s.price * (1 - s.discount / 100),
+        price: s.price,
+        discount: s.discount,
+        isFree: s.isFree
+      }));
+
       const { error } = await supabase
         .from('quotations')
         .insert({
@@ -269,7 +296,15 @@ const QuotationGenerator = () => {
           currency: 'USD',
           status: 'pending',
           quotation_id: quotationId,
-        });
+          version: 1,
+          client_sequence: quotationSequences?.clientSequence || 1,
+          global_sequence: quotationSequences?.globalSequence || 1,
+          valid_until: addDays(new Date(), settings.validityDays).toISOString(),
+          services: servicesData,
+          discount_percent: settings.gstPercentage > 0 ? 0 : calculations.totalDiscount,
+          tax_percent: settings.gstPercentage,
+          notes: `Validity: ${settings.validityDays} days. Advance: ${settings.advancePercentage}%`
+        } as any);
 
       if (error) throw error;
 
@@ -320,6 +355,10 @@ const QuotationGenerator = () => {
           validUntil: validUntil,
           signatoryName: settings.signatoryName,
           signatoryRole: settings.signatoryRole,
+          services: services.filter(s => !s.isFree).map(s => ({
+            description: s.name,
+            amount: s.price * (1 - s.discount / 100)
+          }))
         }
       });
 

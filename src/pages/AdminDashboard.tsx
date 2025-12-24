@@ -147,6 +147,10 @@ const AdminDashboard = () => {
                   </Badge>
                 </div>
                 <div className="flex items-center gap-3">
+                  <Button size="lg" variant="outline" className="gap-2" onClick={() => navigate('/admin/invoice-generator')}>
+                    <FilePlus className="w-5 h-5" />
+                    Create Invoice
+                  </Button>
                   <Button size="lg" className="gap-2" onClick={() => navigate('/admin/quotation-generator')}>
                     <FilePlus className="w-5 h-5" />
                     Create Quotation
