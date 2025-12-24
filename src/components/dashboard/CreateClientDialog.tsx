@@ -92,7 +92,7 @@ export function CreateClientDialog({ onSuccess }: CreateClientDialogProps) {
         setIsLoading(true);
         try {
             // Use edge function to create client (secure - no service role key in frontend)
-            const { data: result, error } = await supabase.functions.invoke('create-client', {
+            const response = await supabase.functions.invoke('create-client', {
                 body: {
                     email: data.contact_email,
                     password: data.password,
@@ -108,8 +108,16 @@ export function CreateClientDialog({ onSuccess }: CreateClientDialogProps) {
                 },
             });
 
-            if (error) throw error;
-            if (result?.error) throw new Error(result.error);
+            // Handle error from edge function
+            if (response.error) {
+                const errorMessage = response.error.message || 'Failed to create client';
+                throw new Error(errorMessage);
+            }
+
+            // Handle error returned in the response body
+            if (response.data?.error) {
+                throw new Error(response.data.error);
+            }
 
             // Store the generated password and email for display
             setGeneratedPassword(data.password);
@@ -117,16 +125,24 @@ export function CreateClientDialog({ onSuccess }: CreateClientDialogProps) {
 
             toast({
                 title: "Success",
-                description: `Client created successfully! Client ID: ${result?.clientId || 'Generated'}`,
+                description: `Client created successfully! Client ID: ${response.data?.clientId || 'Generated'}`,
             });
 
             reset();
             onSuccess?.();
         } catch (error: any) {
             console.error('Client creation error:', error);
+            
+            // Parse error message for user-friendly display
+            let errorMessage = error.message || "Failed to create client";
+            
+            if (errorMessage.includes('already registered') || errorMessage.includes('already exists')) {
+                errorMessage = `This email (${data.contact_email}) is already registered. Please use a different email address.`;
+            }
+            
             toast({
                 title: "Error",
-                description: error.message || "Failed to create client",
+                description: errorMessage,
                 variant: "destructive",
             });
         } finally {
