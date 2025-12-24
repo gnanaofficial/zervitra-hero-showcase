@@ -1,6 +1,9 @@
-/// <reference path="./types.d.ts" />
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Resend } from "npm:resend@2.0.0";
 
-const CorsHeaders = {
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -15,65 +18,13 @@ interface QuotationEmailRequest {
   validUntil: string;
   signatoryName?: string;
   signatoryRole?: string;
+  services?: Array<{ description: string; amount: number }>;
 }
 
-// Function to send email using SendGrid API
-async function sendEmailWithSendGrid(
-  to: string,
-  subject: string,
-  htmlContent: string
-) {
-  const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
-  const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "noreply@zervitra.com";
-
-  if (!SENDGRID_API_KEY) {
-    throw new Error("SENDGRID_API_KEY is not configured");
-  }
-
-  const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${SENDGRID_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      personalizations: [
-        {
-          to: [{ email: to }],
-          subject: subject,
-        },
-      ],
-      from: {
-        email: FROM_EMAIL,
-        name: "Zervitra",
-      },
-      content: [
-        {
-          type: "text/html",
-          value: htmlContent,
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`SendGrid API error: ${response.status} - ${errorText}`);
-  }
-
-  return {
-    success: true,
-    messageId: response.headers.get("x-message-id"),
-  };
-}
-
-Deno.serve(async (req: Request) => {
+const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: CorsHeaders
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -85,17 +36,21 @@ Deno.serve(async (req: Request) => {
       currency,
       validUntil,
       signatoryName = "K.Gnana Sekhar",
-      signatoryRole = "MANAGER"
+      signatoryRole = "MANAGER",
+      services = []
     }: QuotationEmailRequest = await req.json();
+
+    console.log("Sending quotation email to:", to);
 
     const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
           body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
-          .container { max-width: 800px; margin: 20px auto; background: white; border-radius: 0; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          .container { max-width: 800px; margin: 20px auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
           
           .header { background-color: #000; color: white; padding: 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #4f46e5; }
           .logo { font-size: 28px; font-weight: 800; letter-spacing: 1px; }
@@ -110,6 +65,11 @@ Deno.serve(async (req: Request) => {
           .content { padding: 40px; }
           .big-title { text-align: center; font-size: 48px; font-weight: 900; color: #4f46e5; margin: 20px 0 40px; text-transform: uppercase; letter-spacing: 2px; }
           
+          .services-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          .services-table th { background: #f0f0f0; padding: 12px; text-align: left; border-bottom: 2px solid #ddd; }
+          .services-table td { padding: 12px; border-bottom: 1px solid #eee; }
+          .services-table tr:last-child td { border-bottom: none; }
+          
           .total-section { background-color: #1a1a1a; color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; margin-top: 20px; }
           .total-label { font-size: 20px; font-weight: bold; text-transform: uppercase; }
           .total-amount { font-size: 24px; font-weight: bold; color: #4f46e5; }
@@ -120,13 +80,18 @@ Deno.serve(async (req: Request) => {
           .sig-name { font-size: 18px; font-weight: bold; margin-top: 10px; color: #000; }
           .sig-role { background-color: #444; color: white; padding: 5px 15px; border-radius: 20px; font-size: 12px; display: inline-block; margin-top: 5px; }
           
-          .btn { display: inline-block; background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px; font-weight: bold; }
+          @media only screen and (max-width: 600px) {
+            .header { flex-direction: column; text-align: center; }
+            .quote-id { text-align: center; margin-top: 20px; }
+            .footer { flex-direction: column; }
+            .terms, .signature { width: 100%; margin-bottom: 20px; }
+          }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <div class="logo">ZERVITRA</div>
+            <div class="logo">ZERV<span>I</span>TRA</div>
             <div class="quote-id">
               <div>QUOTATION ID : <span>${quotationId}</span></div>
               <div>DATE : <span>${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).toUpperCase().replace(/ /g, '/')}</span></div>
@@ -141,23 +106,43 @@ Deno.serve(async (req: Request) => {
             <div class="big-title">Quotation</div>
             
             <p>Dear ${clientName},</p>
-            <p>Please find the quotation summary below. To view the full detailed quotation, please click the button.</p>
+            <p>Thank you for your interest in our services. Please find your quotation details below:</p>
+            
+            ${services.length > 0 ? `
+            <table class="services-table">
+              <thead>
+                <tr>
+                  <th>Service Description</th>
+                  <th style="text-align: right;">Amount (${currency})</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${services.map(s => `
+                  <tr>
+                    <td>${s.description}</td>
+                    <td style="text-align: right;">${s.amount.toLocaleString()}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            ` : ''}
             
             <div class="total-section">
               <div class="total-label">Total Payable</div>
               <div class="total-amount">${currency} ${amount}</div>
             </div>
             
-            <div style="text-align: center; margin-top: 40px;">
-              <a href="#" class="btn">View Full Quotation</a>
-            </div>
+            <p style="margin-top: 30px; color: #666;">
+              If you have any questions regarding this quotation, please don't hesitate to contact us.
+            </p>
           </div>
           
           <div class="footer">
             <div class="terms">
               <strong>TERMS & CONDITIONS</strong><br>
-              Valid for ${validUntil}.<br>
-              Subject to revision thereafter.
+              This quotation is valid for ${validUntil}.<br>
+              Subject to revision thereafter.<br><br>
+              <strong>Payment Terms:</strong> 50% advance, 50% on delivery.
             </div>
             <div class="signature">
               <div class="sig-name">${signatoryName}</div>
@@ -169,34 +154,37 @@ Deno.serve(async (req: Request) => {
       </html>
     `;
 
-    const emailResponse = await sendEmailWithSendGrid(
-      to,
-      `Quotation ${quotationId} from Zervitra`,
-      htmlContent
-    );
+    const emailResponse = await resend.emails.send({
+      from: "Zervitra <onboarding@resend.dev>",
+      to: [to],
+      subject: `Quotation ${quotationId} from Zervitra`,
+      html: htmlContent,
+    });
 
     console.log("Quotation email sent successfully:", emailResponse);
 
-    return new Response(JSON.stringify(emailResponse), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...CorsHeaders
-      },
-    });
-  } catch (error: any) {
-    console.error("Error sending quotation email:", error);
     return new Response(
-      JSON.stringify({
-        error: error?.message || "Unknown error occurred"
+      JSON.stringify({ 
+        success: true, 
+        message: "Quotation email sent successfully",
+        emailId: emailResponse.data?.id 
       }),
       {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      }
+    );
+  } catch (error: unknown) {
+    console.error("Error sending quotation email:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      {
         status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          ...CorsHeaders
-        },
+        headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
   }
-});
+};
+
+serve(handler);
