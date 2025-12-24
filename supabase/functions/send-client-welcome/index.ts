@@ -141,11 +141,12 @@ serve(async (req) => {
                 }
             );
         }
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Error sending welcome email:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to send welcome email";
         return new Response(
             JSON.stringify({
-                error: error.message || "Failed to send welcome email"
+                error: errorMessage
             }),
             {
                 status: 500,
