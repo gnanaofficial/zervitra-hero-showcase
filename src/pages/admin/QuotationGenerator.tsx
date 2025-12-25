@@ -20,7 +20,6 @@ import {
   Plus,
   Trash2,
   Printer,
-  Moon,
   Zap,
   CheckCircle,
   Info,
@@ -99,8 +98,7 @@ const complimentaryAddons = [
 const QuotationGenerator = () => {
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const [isDarkPreview, setIsDarkPreview] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [clients, setClients] = useState<DatabaseClient[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
@@ -271,7 +269,8 @@ const QuotationGenerator = () => {
     return pdf.output('blob');
   };
 
-  const handleSaveQuotation = async () => {
+  // Save as draft (doesn't send email)
+  const handleSaveDraft = async () => {
     if (!selectedClientId) {
       toast({
         title: "Error",
@@ -289,7 +288,7 @@ const QuotationGenerator = () => {
       return;
     }
 
-    setIsSaving(true);
+    setIsSavingDraft(true);
     try {
       // Get client's project
       const { data: projects } = await supabase
@@ -304,7 +303,7 @@ const QuotationGenerator = () => {
           description: "No project found for this client. Please create a project first.",
           variant: "destructive"
         });
-        setIsSaving(false);
+        setIsSavingDraft(false);
         return;
       }
 
@@ -315,7 +314,6 @@ const QuotationGenerator = () => {
       let pdfUrl: string | null = null;
       
       if (pdfBlob) {
-        // Upload PDF to Supabase storage
         const fileName = `${quotationId.replace(/[^a-zA-Z0-9-]/g, '_')}_${Date.now()}.pdf`;
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('quotations')
@@ -326,13 +324,7 @@ const QuotationGenerator = () => {
 
         if (uploadError) {
           console.error('PDF upload error:', uploadError);
-          toast({
-            title: "Warning",
-            description: "PDF upload failed, but quotation will be saved without PDF",
-            variant: "destructive"
-          });
         } else {
-          // Get public URL
           const { data: urlData } = supabase.storage
             .from('quotations')
             .getPublicUrl(fileName);
@@ -355,7 +347,7 @@ const QuotationGenerator = () => {
           project_id: projects[0].id,
           amount: calculations.netPayableUSD,
           currency: 'USD',
-          status: 'pending',
+          status: 'draft',
           quotation_id: quotationId,
           version: 1,
           client_sequence: quotationSequences?.clientSequence || 1,
@@ -370,14 +362,13 @@ const QuotationGenerator = () => {
 
       if (error) throw error;
 
-      // Store the PDF URL for email sending
       if (pdfUrl) {
         setSavedPdfUrl(pdfUrl);
       }
 
       toast({
-        title: "Success",
-        description: pdfUrl ? "Quotation saved with PDF to database" : "Quotation saved to database"
+        title: "Draft Saved",
+        description: "Quotation saved as draft"
       });
     } catch (error: any) {
       toast({
@@ -386,11 +377,28 @@ const QuotationGenerator = () => {
         variant: "destructive"
       });
     } finally {
-      setIsSaving(false);
+      setIsSavingDraft(false);
     }
   };
 
-  const handleSendEmail = async () => {
+  // Send quotation (saves to DB and sends email)
+  const handleSendQuotation = async () => {
+    if (!selectedClientId) {
+      toast({
+        title: "Error",
+        description: "Please select a client first",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (!quotationId) {
+      toast({
+        title: "Error",
+        description: "Quotation ID could not be generated.",
+        variant: "destructive"
+      });
+      return;
+    }
     if (!clientDetails.email) {
       toast({
         title: "Error",
@@ -399,17 +407,81 @@ const QuotationGenerator = () => {
       });
       return;
     }
-    if (!quotationId) {
-      toast({
-        title: "Error",
-        description: "Quotation ID is missing, cannot send email.",
-        variant: "destructive"
-      });
-      return;
-    }
 
     setIsSending(true);
     try {
+      // Get client's project
+      const { data: projects } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('client_id', selectedClientId)
+        .limit(1);
+
+      if (!projects?.length) {
+        toast({
+          title: "Error",
+          description: "No project found for this client. Please create a project first.",
+          variant: "destructive"
+        });
+        setIsSending(false);
+        return;
+      }
+
+      // Generate PDF
+      toast({ title: "Generating & Sending...", description: "Please wait" });
+      const pdfBlob = await generatePDF();
+      
+      let pdfUrl: string | null = null;
+      
+      if (pdfBlob) {
+        const fileName = `${quotationId.replace(/[^a-zA-Z0-9-]/g, '_')}_${Date.now()}.pdf`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('quotations')
+          .upload(fileName, pdfBlob, {
+            contentType: 'application/pdf',
+            upsert: true
+          });
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage
+            .from('quotations')
+            .getPublicUrl(fileName);
+          pdfUrl = urlData.publicUrl;
+        }
+      }
+
+      const servicesData = services.map(s => ({
+        description: s.name,
+        amount: s.isFree ? 0 : s.price * (1 - s.discount / 100),
+        price: s.price,
+        discount: s.discount,
+        isFree: s.isFree
+      }));
+
+      // Save to database with 'sent' status
+      const { error } = await supabase
+        .from('quotations')
+        .insert({
+          client_id: selectedClientId,
+          project_id: projects[0].id,
+          amount: calculations.netPayableUSD,
+          currency: 'USD',
+          status: 'sent',
+          quotation_id: quotationId,
+          version: 1,
+          client_sequence: quotationSequences?.clientSequence || 1,
+          global_sequence: quotationSequences?.globalSequence || 1,
+          valid_until: addDays(new Date(), settings.validityDays).toISOString(),
+          services: servicesData,
+          discount_percent: settings.gstPercentage > 0 ? 0 : calculations.totalDiscount,
+          tax_percent: settings.gstPercentage,
+          notes: `Validity: ${settings.validityDays} days. Advance: ${settings.advancePercentage}%`,
+          pdf_url: pdfUrl
+        } as any);
+
+      if (error) throw error;
+
+      // Send email
       const validUntil = format(addDays(new Date(), settings.validityDays), "MMMM d, yyyy");
 
       const response = await supabase.functions.invoke('send-quotation-email', {
@@ -426,20 +498,20 @@ const QuotationGenerator = () => {
             description: s.name,
             amount: s.price * (1 - s.discount / 100)
           })),
-          pdfUrl: savedPdfUrl
+          pdfUrl: pdfUrl
         }
       });
 
       if (response.error) throw response.error;
 
       toast({
-        title: "Success",
-        description: "Quotation sent to client's email"
+        title: "Sent!",
+        description: "Quotation saved and sent to client's email"
       });
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to send email. Make sure RESEND_API_KEY is configured.",
+        description: error.message,
         variant: "destructive"
       });
     } finally {
@@ -484,31 +556,22 @@ const QuotationGenerator = () => {
               <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
-                  size="icon"
-                  onClick={() => setIsDarkPreview(!isDarkPreview)}
-                  className="rounded-full"
-                >
-                  <Moon className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleSaveQuotation}
-                  disabled={isSaving}
+                  onClick={handleSaveDraft}
+                  disabled={isSavingDraft}
                   className="gap-2"
                 >
-                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Save
+                  {isSavingDraft ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save as Draft
                 </Button>
                 <Button
-                  variant="outline"
-                  onClick={handleSendEmail}
+                  onClick={handleSendQuotation}
                   disabled={isSending}
                   className="gap-2"
                 >
                   {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-                  Email
+                  Send
                 </Button>
-                <Button onClick={handlePrint} className="gap-2">
+                <Button variant="outline" onClick={handlePrint} className="gap-2">
                   <Printer className="h-4 w-4" />
                   Export PDF
                 </Button>
