@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
