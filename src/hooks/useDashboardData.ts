@@ -17,6 +17,8 @@ interface Quotation {
   currency: string;
   status: string;
   created_at: string;
+  pdf_url?: string;
+  quotation_id?: string;
   projects: { title: string };
 }
 
@@ -24,10 +26,12 @@ interface Invoice {
   id: string;
   project_id: string;
   amount: number;
+  total?: number;
   currency: string;
   due_date: string;
   status: string;
   created_at: string;
+  invoice_id?: string;
   projects: { title: string };
 }
 

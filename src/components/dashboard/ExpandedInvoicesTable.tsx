@@ -29,10 +29,12 @@ interface Invoice {
   id: string;
   project_id: string;
   amount: number;
+  total?: number;
   currency: string;
   due_date: string;
   status: string;
   created_at: string;
+  invoice_id?: string;
   projects: { title: string };
 }
 
@@ -251,10 +253,15 @@ export const ExpandedInvoicesTable = memo(({
                       className="border-b hover:bg-muted/50 cursor-pointer transition-colors"
                     >
                       <TableCell className="font-medium">
-                        {invoice.projects?.title || "Untitled Project"}
+                        <div>
+                          <div>{invoice.projects?.title || "Untitled Project"}</div>
+                          {invoice.invoice_id && (
+                            <div className="text-xs text-muted-foreground">{invoice.invoice_id}</div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="font-semibold">
-                        {formatCurrency(invoice.amount, invoice.currency)}
+                        {formatCurrency(invoice.total || invoice.amount, invoice.currency)}
                       </TableCell>
                       <TableCell>
                         {format(new Date(invoice.due_date), "MMM d, yyyy")}

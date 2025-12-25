@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Download, ArrowUpDown, FileDown, FileText, Plus } from "lucide-react";
+import { Search, Download, ArrowUpDown, FileDown, FileText, Plus, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/payments";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -32,6 +32,8 @@ interface Quotation {
   status: string;
   created_at: string;
   valid_until?: string;
+  pdf_url?: string;
+  quotation_id?: string;
   projects: { title: string };
 }
 
@@ -222,6 +224,7 @@ export const ExpandedQuotationsTable = memo(({
                     <ArrowUpDown className="w-3 h-3" />
                   </Button>
                 </TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -232,6 +235,7 @@ export const ExpandedQuotationsTable = memo(({
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
                   </TableRow>
                 ))
               ) : filteredQuotations.length > 0 ? (
@@ -246,7 +250,12 @@ export const ExpandedQuotationsTable = memo(({
                       className="border-b hover:bg-muted/50 cursor-pointer transition-colors"
                     >
                       <TableCell className="font-medium">
-                        {quotation.projects?.title || "Untitled Project"}
+                        <div>
+                          <div>{quotation.projects?.title || "Untitled Project"}</div>
+                          {quotation.quotation_id && (
+                            <div className="text-xs text-muted-foreground">{quotation.quotation_id}</div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="font-semibold">
                         {formatCurrency(quotation.amount, quotation.currency)}
@@ -259,20 +268,31 @@ export const ExpandedQuotationsTable = memo(({
                       <TableCell>
                         {format(new Date(quotation.created_at), "MMM d, yyyy")}
                       </TableCell>
+                      <TableCell className="text-right">
+                        {quotation.pdf_url ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(quotation.pdf_url, '_blank')}
+                            className="gap-1"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View PDF
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No PDF</span>
+                        )}
+                      </TableCell>
                     </motion.tr>
                   ))}
                 </AnimatePresence>
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-12">
+                  <TableCell colSpan={5} className="text-center py-12">
                     <div className="flex flex-col items-center gap-3">
                       <FileText className="w-12 h-12 text-muted-foreground" />
                       <p className="text-muted-foreground font-medium">No quotations found</p>
                       <p className="text-sm text-muted-foreground">Try adjusting your search or filter criteria</p>
-                      <Button variant="outline" size="sm" className="mt-2">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Request New Quotation
-                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
