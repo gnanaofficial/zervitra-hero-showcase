@@ -30,6 +30,8 @@ import {
 import { format, addDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 interface ServiceItem {
   id: string;
@@ -113,6 +115,7 @@ const QuotationGenerator = () => {
   });
 
   const [quotationId, setQuotationId] = useState<string>("");
+  const [savedPdfUrl, setSavedPdfUrl] = useState<string | null>(null);
   const [quotationSequences, setQuotationSequences] = useState<{
     clientSequence: number;
     globalSequence: number;
@@ -242,6 +245,31 @@ const QuotationGenerator = () => {
     ));
   };
 
+  // Helper function to generate PDF from the preview
+  const generatePDF = async (): Promise<Blob | null> => {
+    if (!printRef.current) return null;
+    
+    const canvas = await html2canvas(printRef.current, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: isDarkPreview ? '#000000' : '#ffffff'
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+    return pdf.output('blob');
+  };
+
   const handleSaveQuotation = async () => {
     if (!selectedClientId) {
       toast({
@@ -279,6 +307,38 @@ const QuotationGenerator = () => {
         return;
       }
 
+      // Generate PDF
+      toast({ title: "Generating PDF...", description: "Please wait" });
+      const pdfBlob = await generatePDF();
+      
+      let pdfUrl: string | null = null;
+      
+      if (pdfBlob) {
+        // Upload PDF to Supabase storage
+        const fileName = `${quotationId.replace(/[^a-zA-Z0-9-]/g, '_')}_${Date.now()}.pdf`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('quotations')
+          .upload(fileName, pdfBlob, {
+            contentType: 'application/pdf',
+            upsert: true
+          });
+
+        if (uploadError) {
+          console.error('PDF upload error:', uploadError);
+          toast({
+            title: "Warning",
+            description: "PDF upload failed, but quotation will be saved without PDF",
+            variant: "destructive"
+          });
+        } else {
+          // Get public URL
+          const { data: urlData } = supabase.storage
+            .from('quotations')
+            .getPublicUrl(fileName);
+          pdfUrl = urlData.publicUrl;
+        }
+      }
+
       const servicesData = services.map(s => ({
         description: s.name,
         amount: s.isFree ? 0 : s.price * (1 - s.discount / 100),
@@ -303,14 +363,20 @@ const QuotationGenerator = () => {
           services: servicesData,
           discount_percent: settings.gstPercentage > 0 ? 0 : calculations.totalDiscount,
           tax_percent: settings.gstPercentage,
-          notes: `Validity: ${settings.validityDays} days. Advance: ${settings.advancePercentage}%`
+          notes: `Validity: ${settings.validityDays} days. Advance: ${settings.advancePercentage}%`,
+          pdf_url: pdfUrl
         } as any);
 
       if (error) throw error;
 
+      // Store the PDF URL for email sending
+      if (pdfUrl) {
+        setSavedPdfUrl(pdfUrl);
+      }
+
       toast({
         title: "Success",
-        description: "Quotation saved to database"
+        description: pdfUrl ? "Quotation saved with PDF to database" : "Quotation saved to database"
       });
     } catch (error: any) {
       toast({
@@ -358,7 +424,8 @@ const QuotationGenerator = () => {
           services: services.filter(s => !s.isFree).map(s => ({
             description: s.name,
             amount: s.price * (1 - s.discount / 100)
-          }))
+          })),
+          pdfUrl: savedPdfUrl
         }
       });
 

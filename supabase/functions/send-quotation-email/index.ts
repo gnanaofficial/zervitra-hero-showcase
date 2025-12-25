@@ -19,6 +19,7 @@ interface QuotationEmailRequest {
   signatoryName?: string;
   signatoryRole?: string;
   services?: Array<{ description: string; amount: number }>;
+  pdfUrl?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -37,10 +38,11 @@ const handler = async (req: Request): Promise<Response> => {
       validUntil,
       signatoryName = "K.Gnana Sekhar",
       signatoryRole = "MANAGER",
-      services = []
+      services = [],
+      pdfUrl
     }: QuotationEmailRequest = await req.json();
 
-    console.log("Sending quotation email to:", to);
+    console.log("Sending quotation email to:", to, "with PDF URL:", pdfUrl);
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -131,6 +133,12 @@ const handler = async (req: Request): Promise<Response> => {
               <div class="total-label">Total Payable</div>
               <div class="total-amount">${currency} ${amount}</div>
             </div>
+            
+            ${pdfUrl ? `
+            <p style="margin-top: 20px;">
+              <a href="${pdfUrl}" style="display: inline-block; background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Download PDF Quotation</a>
+            </p>
+            ` : ''}
             
             <p style="margin-top: 30px; color: #666;">
               If you have any questions regarding this quotation, please don't hesitate to contact us.
