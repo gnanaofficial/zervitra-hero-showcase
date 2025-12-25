@@ -294,17 +294,31 @@ const ClientDashboard = () => {
                           <h4 className="font-medium text-foreground text-sm">
                             {quote.projects?.title || 'Untitled Project'}
                           </h4>
+                          {(quote as any).quotation_id && (
+                            <p className="text-xs text-primary font-mono">{(quote as any).quotation_id}</p>
+                          )}
                           <p className="text-xs text-muted-foreground">
                             {format(new Date(quote.created_at), 'MMM d, yyyy')}
                           </p>
                         </div>
-                        <div className="text-right">
-                          <div className="font-semibold text-foreground">
-                            {formatCurrency(quote.amount, quote.currency)}
+                        <div className="text-right flex items-center gap-3">
+                          <div>
+                            <div className="font-semibold text-foreground">
+                              {formatCurrency(quote.amount, quote.currency)}
+                            </div>
+                            <Badge variant={getStatusBadgeVariant(quote.status)} className="text-xs">
+                              {quote.status}
+                            </Badge>
                           </div>
-                          <Badge variant={getStatusBadgeVariant(quote.status)} className="text-xs">
-                            {quote.status}
-                          </Badge>
+                          {(quote as any).pdf_url && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open((quote as any).pdf_url, '_blank')}
+                            >
+                              <FileText className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -336,6 +350,9 @@ const ClientDashboard = () => {
                           <h4 className="font-medium text-foreground text-sm">
                             {invoice.projects?.title || 'Untitled Project'}
                           </h4>
+                          {(invoice as any).invoice_id && (
+                            <p className="text-xs text-primary font-mono">{(invoice as any).invoice_id}</p>
+                          )}
                           <p className="text-xs text-muted-foreground">
                             Due {format(new Date(invoice.due_date), 'MMM d, yyyy')}
                           </p>
@@ -343,7 +360,7 @@ const ClientDashboard = () => {
                         <div className="text-right flex items-center gap-3">
                           <div>
                             <div className="font-semibold text-foreground">
-                              {formatCurrency(invoice.amount, invoice.currency)}
+                              {formatCurrency((invoice as any).total || invoice.amount, invoice.currency)}
                             </div>
                             <Badge variant={getStatusBadgeVariant(invoice.status)} className="text-xs">
                               {invoice.status}
@@ -352,7 +369,7 @@ const ClientDashboard = () => {
                           {invoice.status === 'pending' && (
                             <PaymentButton
                               invoiceId={invoice.id}
-                              amount={invoice.amount}
+                              amount={(invoice as any).total || invoice.amount}
                               currency={invoice.currency}
                               onPaymentSuccess={refreshData}
                             />

@@ -1,6 +1,10 @@
 // Payment service utilities for Stripe and Razorpay
 import { supabase } from '@/integrations/supabase/client';
 
+// Publishable keys (safe to expose in frontend)
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51RL05dAd97NChG5dLdJi9RQmrXqjc5l3QdCbSqj4LuvQcmLCnL1qZOPJ8JCOJlK5xgvjPKOiQZoPlTq4OKs0cLpU00QbE3xjXw';
+const RAZORPAY_KEY_ID = 'rzp_test_1234567890'; // Replace with your actual test key
+
 export interface PaymentProvider {
   id: 'stripe' | 'razorpay';
   name: string;
@@ -11,13 +15,13 @@ export const getAvailablePaymentProviders = (): PaymentProvider[] => {
   const providers: PaymentProvider[] = [
     {
       id: 'stripe',
-      name: 'Stripe',
-      enabled: !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+      name: 'Stripe (Card)',
+      enabled: !!STRIPE_PUBLISHABLE_KEY
     },
     {
       id: 'razorpay',
-      name: 'Razorpay',
-      enabled: !!import.meta.env.VITE_RAZORPAY_KEY_ID
+      name: 'Razorpay (UPI/Card)',
+      enabled: !!RAZORPAY_KEY_ID
     }
   ];
 
@@ -75,7 +79,7 @@ export const processRazorpayPayment = async (invoiceId: string, amount: number, 
 
     return new Promise((resolve, reject) => {
       const options = {
-        key: data.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
+        key: data.keyId || RAZORPAY_KEY_ID,
         amount: data.amount,
         currency: data.currency,
         name: 'Zervitra',
@@ -140,7 +144,7 @@ const loadStripe = async () => {
     });
   }
   
-  return (window as any).Stripe ? (window as any).Stripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) : null;
+  return (window as any).Stripe ? (window as any).Stripe(STRIPE_PUBLISHABLE_KEY) : null;
 };
 
 const loadRazorpayScript = async () => {
