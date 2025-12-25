@@ -17,7 +17,6 @@ import {
   Plus, 
   Trash2, 
   Printer,
-  Moon,
   Zap,
   Mail,
   Save,
@@ -67,8 +66,7 @@ const defaultServices: ServiceItem[] = [
 const InvoiceGenerator = () => {
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const [isDarkPreview, setIsDarkPreview] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [clients, setClients] = useState<DatabaseClient[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
@@ -200,7 +198,8 @@ const InvoiceGenerator = () => {
     ));
   };
 
-  const handleSaveInvoice = async () => {
+  // Save as draft (doesn't send email)
+  const handleSaveDraft = async () => {
     if (!selectedClientId) {
       toast({
         title: "Error",
@@ -210,9 +209,8 @@ const InvoiceGenerator = () => {
       return;
     }
 
-    setIsSaving(true);
+    setIsSavingDraft(true);
     try {
-      // Get client's project
       const { data: projects } = await supabase
         .from('projects')
         .select('id')
@@ -225,6 +223,7 @@ const InvoiceGenerator = () => {
           description: "No project found for this client",
           variant: "destructive"
         });
+        setIsSavingDraft(false);
         return;
       }
 
@@ -242,7 +241,7 @@ const InvoiceGenerator = () => {
           project_id: projects[0].id,
           amount: calculations.subtotal,
           currency: 'USD',
-          status: 'pending',
+          status: 'draft',
           due_date: dueDate.toISOString(),
           invoice_id: invoiceId,
           version: 1,
@@ -258,8 +257,8 @@ const InvoiceGenerator = () => {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "Invoice saved successfully"
+        title: "Draft Saved",
+        description: "Invoice saved as draft"
       });
     } catch (error: any) {
       toast({
@@ -268,11 +267,20 @@ const InvoiceGenerator = () => {
         variant: "destructive"
       });
     } finally {
-      setIsSaving(false);
+      setIsSavingDraft(false);
     }
   };
 
-  const handleSendEmail = async () => {
+  // Send invoice (saves to DB and sends email)
+  const handleSendInvoice = async () => {
+    if (!selectedClientId) {
+      toast({
+        title: "Error",
+        description: "Please select a client first",
+        variant: "destructive"
+      });
+      return;
+    }
     if (!clientDetails.email) {
       toast({
         title: "Error",
@@ -284,6 +292,53 @@ const InvoiceGenerator = () => {
 
     setIsSending(true);
     try {
+      const { data: projects } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('client_id', selectedClientId)
+        .limit(1);
+
+      if (!projects?.length) {
+        toast({
+          title: "Error",
+          description: "No project found for this client",
+          variant: "destructive"
+        });
+        setIsSending(false);
+        return;
+      }
+
+      const servicesData = services.map(s => ({
+        description: s.name,
+        amount: s.price * s.quantity,
+        price: s.price,
+        quantity: s.quantity
+      }));
+
+      // Save to database with 'sent' status
+      const { error } = await supabase
+        .from('invoices')
+        .insert({
+          client_id: selectedClientId,
+          project_id: projects[0].id,
+          amount: calculations.subtotal,
+          currency: 'USD',
+          status: 'sent',
+          due_date: dueDate.toISOString(),
+          invoice_id: invoiceId,
+          version: 1,
+          client_sequence: invoiceSequences?.clientSequence || 1,
+          global_sequence: invoiceSequences?.globalSequence || 1,
+          financial_year: invoiceSequences?.financialYear || '',
+          tax: calculations.gstAmount,
+          total: calculations.totalUSD,
+          services: servicesData,
+          tax_percent: settings.gstPercentage,
+        } as any);
+
+      if (error) throw error;
+
+      // Send email
       const response = await supabase.functions.invoke('send-quotation-email', {
         body: {
           to: clientDetails.email,
@@ -302,8 +357,8 @@ const InvoiceGenerator = () => {
       if (response.error) throw response.error;
 
       toast({
-        title: "Success",
-        description: "Invoice sent to client's email"
+        title: "Sent!",
+        description: "Invoice saved and sent to client's email"
       });
     } catch (error: any) {
       toast({
@@ -364,33 +419,24 @@ const InvoiceGenerator = () => {
                 <p className="text-muted-foreground mt-1">Create and export professional invoices - {invoiceId || 'Select a client'}</p>
               </div>
               <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setIsDarkPreview(!isDarkPreview)}
-                  className="rounded-full"
-                >
-                  <Moon className="h-4 w-4" />
-                </Button>
                 <Button 
                   variant="outline" 
-                  onClick={handleSaveInvoice} 
-                  disabled={isSaving}
+                  onClick={handleSaveDraft} 
+                  disabled={isSavingDraft}
                   className="gap-2"
                 >
-                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Save
+                  {isSavingDraft ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save as Draft
                 </Button>
                 <Button 
-                  variant="outline" 
-                  onClick={handleSendEmail}
+                  onClick={handleSendInvoice}
                   disabled={isSending}
                   className="gap-2"
                 >
                   {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-                  Email
+                  Send
                 </Button>
-                <Button onClick={handlePrint} className="gap-2">
+                <Button variant="outline" onClick={handlePrint} className="gap-2">
                   <Printer className="h-4 w-4" />
                   Export PDF
                 </Button>
@@ -544,10 +590,10 @@ const InvoiceGenerator = () => {
               >
                 <div 
                   ref={printRef}
-                  className={`rounded-2xl shadow-2xl overflow-hidden ${isDarkPreview ? 'bg-[#1a1a2e]' : 'bg-white'}`}
+                  className="rounded-2xl shadow-2xl overflow-hidden bg-white"
                   style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}
                 >
-                  <div className={`p-8 ${isDarkPreview ? 'text-gray-100' : 'text-gray-900'}`}>
+                  <div className="p-8 text-gray-900">
                     {/* Header */}
                     <div className="flex items-center justify-between mb-8">
                       <div className="flex items-center gap-4">
