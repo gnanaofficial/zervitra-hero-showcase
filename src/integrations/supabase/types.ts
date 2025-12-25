@@ -315,6 +315,7 @@ export type Database = {
           global_sequence: number | null
           id: string
           notes: string | null
+          pdf_url: string | null
           project_id: string
           quotation_id: string | null
           services: Json | null
@@ -334,6 +335,7 @@ export type Database = {
           global_sequence?: number | null
           id?: string
           notes?: string | null
+          pdf_url?: string | null
           project_id: string
           quotation_id?: string | null
           services?: Json | null
@@ -353,6 +355,7 @@ export type Database = {
           global_sequence?: number | null
           id?: string
           notes?: string | null
+          pdf_url?: string | null
           project_id?: string
           quotation_id?: string | null
           services?: Json | null
