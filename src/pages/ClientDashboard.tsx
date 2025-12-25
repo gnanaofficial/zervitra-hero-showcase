@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
@@ -6,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import PaymentButton from "@/components/PaymentButton";
+import PaymentSuccessDialog from "@/components/PaymentSuccessDialog";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { formatCurrency } from "@/lib/payments";
 import { format } from "date-fns";
@@ -35,8 +37,35 @@ type ExpandedView = "projects" | "quotations" | "invoices" | null;
 
 const ClientDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { loading, error, projects, quotations, invoices, allProjects, allQuotations, allInvoices, overview, refreshData } = useDashboardData();
   const [expandedView, setExpandedView] = useState<ExpandedView>(null);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [paidInvoiceId, setPaidInvoiceId] = useState<string | null>(null);
+
+  // Handle payment success redirect
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    const invoiceId = searchParams.get('invoice');
+    
+    if (paymentStatus === 'success' && invoiceId) {
+      setShowPaymentSuccess(true);
+      setPaidInvoiceId(invoiceId);
+      // Refresh data to get updated invoice status
+      refreshData();
+      // Clean up URL params
+      setSearchParams({});
+    } else if (paymentStatus === 'cancelled') {
+      // Could show a cancelled toast here if needed
+      setSearchParams({});
+    }
+  }, [searchParams, refreshData, setSearchParams]);
+
+  const handlePaymentDialogClose = () => {
+    setShowPaymentSuccess(false);
+    setPaidInvoiceId(null);
+  };
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -366,14 +395,18 @@ const ClientDashboard = () => {
                               {invoice.status}
                             </Badge>
                           </div>
-                          {invoice.status === 'pending' && (
+                          {(invoice.status === 'pending' || invoice.status === 'overdue') ? (
                             <PaymentButton
                               invoiceId={invoice.id}
                               amount={(invoice as any).total || invoice.amount}
                               currency={invoice.currency}
                               onPaymentSuccess={refreshData}
                             />
-                          )}
+                          ) : invoice.status === 'paid' ? (
+                            <Badge variant="default" className="bg-green-500/20 text-green-600 border-green-500/30 text-xs">
+                              Paid
+                            </Badge>
+                          ) : null}
                         </div>
                       </div>
                     ))}
@@ -425,6 +458,13 @@ const ClientDashboard = () => {
             />
           )}
         </ExpandedViewContainer>
+
+        {/* Payment Success Dialog */}
+        <PaymentSuccessDialog
+          open={showPaymentSuccess}
+          onClose={handlePaymentDialogClose}
+          invoiceId={paidInvoiceId || ''}
+        />
       </div>
     </>
   );
