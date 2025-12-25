@@ -24,20 +24,25 @@ export const getAvailablePaymentProviders = (): PaymentProvider[] => {
   return providers.filter(p => p.enabled);
 };
 
-export const processStripePayment = async (invoiceId: string, amount: number) => {
+export const processStripePayment = async (invoiceId: string, amount: number, currency: string = 'USD') => {
   try {
-    // Load Stripe
-    const stripe = await loadStripe();
-    if (!stripe) throw new Error('Stripe failed to load');
-
-    // Create payment intent via Supabase edge function
+    // Create checkout session via Supabase edge function
     const { data, error } = await supabase.functions.invoke('create-stripe-payment', {
-      body: { invoiceId, amount }
+      body: { invoiceId, amount, currency }
     });
 
     if (error) throw error;
 
-    // Redirect to Stripe checkout
+    // Redirect to Stripe checkout URL
+    if (data.url) {
+      window.location.href = data.url;
+      return { success: true };
+    }
+
+    // Fallback to redirectToCheckout if URL not provided
+    const stripe = await loadStripe();
+    if (!stripe) throw new Error('Stripe failed to load');
+
     const result = await stripe.redirectToCheckout({
       sessionId: data.sessionId
     });
@@ -56,11 +61,11 @@ export const processStripePayment = async (invoiceId: string, amount: number) =>
   }
 };
 
-export const processRazorpayPayment = async (invoiceId: string, amount: number) => {
+export const processRazorpayPayment = async (invoiceId: string, amount: number, currency: string = 'INR') => {
   try {
     // Create Razorpay order via Supabase edge function
     const { data, error } = await supabase.functions.invoke('create-razorpay-order', {
-      body: { invoiceId, amount }
+      body: { invoiceId, amount, currency }
     });
 
     if (error) throw error;
@@ -68,40 +73,51 @@ export const processRazorpayPayment = async (invoiceId: string, amount: number) 
     // Load Razorpay script dynamically
     await loadRazorpayScript();
 
-    const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-      amount: data.amount,
-      currency: data.currency,
-      name: 'Zervitra',
-      description: `Payment for Invoice ${invoiceId}`,
-      order_id: data.orderId,
-      handler: async (response: any) => {
-        // Verify payment via Supabase edge function
-        const { error: verifyError } = await supabase.functions.invoke('verify-razorpay-payment', {
-          body: {
-            invoiceId,
-            paymentId: response.razorpay_payment_id,
-            orderId: response.razorpay_order_id,
-            signature: response.razorpay_signature
+    return new Promise((resolve, reject) => {
+      const options = {
+        key: data.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: data.amount,
+        currency: data.currency,
+        name: 'Zervitra',
+        description: `Payment for Invoice ${invoiceId}`,
+        order_id: data.orderId,
+        handler: async (response: any) => {
+          try {
+            // Verify payment via Supabase edge function
+            const { error: verifyError } = await supabase.functions.invoke('verify-razorpay-payment', {
+              body: {
+                invoiceId,
+                paymentId: response.razorpay_payment_id,
+                orderId: response.razorpay_order_id,
+                signature: response.razorpay_signature
+              }
+            });
+
+            if (verifyError) {
+              reject(new Error('Payment verification failed'));
+              return;
+            }
+
+            // Payment successful - reload to show updated status
+            window.location.href = window.location.origin + '/client-dashboard?payment=success&invoice=' + invoiceId;
+            resolve({ success: true });
+          } catch (err) {
+            reject(err);
           }
-        });
-
-        if (verifyError) {
-          throw new Error('Payment verification failed');
+        },
+        modal: {
+          ondismiss: () => {
+            resolve({ success: false, error: 'Payment cancelled' });
+          }
+        },
+        theme: {
+          color: '#6366f1'
         }
+      };
 
-        // Payment successful
-        window.location.reload();
-      },
-      theme: {
-        color: '#6366f1'
-      }
-    };
-
-    const razorpay = new (window as any).Razorpay(options);
-    razorpay.open();
-
-    return { success: true };
+      const razorpay = new (window as any).Razorpay(options);
+      razorpay.open();
+    });
   } catch (error) {
     console.error('Razorpay payment error:', error);
     return { 

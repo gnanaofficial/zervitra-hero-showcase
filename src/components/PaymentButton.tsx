@@ -39,10 +39,13 @@ const PaymentButton = ({
       setLoading(true);
       
       let result;
+      // Use appropriate currency for each provider
+      const paymentCurrency = provider === 'razorpay' ? 'INR' : currency;
+      
       if (provider === 'stripe') {
-        result = await processStripePayment(invoiceId, amount);
+        result = await processStripePayment(invoiceId, amount, paymentCurrency);
       } else {
-        result = await processRazorpayPayment(invoiceId, amount);
+        result = await processRazorpayPayment(invoiceId, amount, paymentCurrency);
       }
 
       if (result.success) {
