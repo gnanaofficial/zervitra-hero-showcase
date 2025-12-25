@@ -23,53 +23,82 @@ Deno.serve(async (req) => {
     )
 
     // Create admin user
+    const adminEmail = 'gs@gmail.com'
+    const adminPassword = 'Gnana@8179'
+
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: 'gs@gmail.com',
-      password: 'Gnana@8179',
+      email: adminEmail,
+      password: adminPassword,
       email_confirm: true,
       user_metadata: {
-        name: 'Admin User'
-      }
+        name: 'Admin User',
+      },
     })
 
     if (authError) {
-      // If user already exists, try to get the existing user
-      if (authError.message.includes('already registered')) {
-        const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers()
-        if (listError) throw listError
-        
-        const existingUser = users.find(u => u.email === 'gs@gmail.com')
-        if (!existingUser) throw new Error('User exists but could not be found')
+      const msg = String((authError as any)?.message ?? authError)
+      const status = (authError as any)?.status
+      const code = (authError as any)?.code
 
-        // Update password for existing user
-        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-          existingUser.id,
-          { password: 'Gnana@8179' }
-        )
+      console.log('[create-admin-user] createUser failed', { status, code, msg })
+
+      // If user already exists, update password + ensure role (idempotent)
+      const isEmailExists =
+        status === 422 ||
+        code === 'email_exists' ||
+        /already been registered/i.test(msg) ||
+        /email.*exists/i.test(msg)
+
+      if (isEmailExists) {
+        // listUsers is paginated; scan a few pages to find the user
+        let existingUser: any | null = null
+        for (let page = 1; page <= 10; page++) {
+          const { data, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+            page,
+            perPage: 200,
+          })
+          if (listError) throw listError
+
+          existingUser = (data?.users ?? []).find((u) => u.email === adminEmail) ?? null
+          if (existingUser) break
+
+          if (!data?.users?.length) break
+        }
+
+        if (!existingUser) {
+          throw new Error('User exists but could not be found via listUsers')
+        }
+
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+          password: adminPassword,
+        })
         if (updateError) throw updateError
 
-        // Insert admin role
         const { error: roleError } = await supabaseAdmin
           .from('user_roles')
-          .upsert({ 
-            user_id: existingUser.id, 
-            role: 'admin' 
-          }, { 
-            onConflict: 'user_id,role',
-            ignoreDuplicates: true 
-          })
+          .upsert(
+            {
+              user_id: existingUser.id,
+              role: 'admin',
+            },
+            {
+              onConflict: 'user_id,role',
+              ignoreDuplicates: true,
+            }
+          )
 
         if (roleError) throw roleError
 
         return new Response(
-          JSON.stringify({ 
-            success: true, 
-            message: 'Admin user updated and role assigned',
-            user_id: existingUser.id 
+          JSON.stringify({
+            success: true,
+            message: 'Admin user already existed; password updated and role ensured',
+            user_id: existingUser.id,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+
       throw authError
     }
 
