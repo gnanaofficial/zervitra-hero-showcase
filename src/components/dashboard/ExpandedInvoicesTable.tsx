@@ -272,14 +272,18 @@ export const ExpandedInvoicesTable = memo(({
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        {invoice.status === "pending" && (
+                        {invoice.status === "pending" || invoice.status === "overdue" ? (
                           <PaymentButton
                             invoiceId={invoice.id}
-                            amount={invoice.amount}
+                            amount={invoice.total || invoice.amount}
                             currency={invoice.currency}
                             onPaymentSuccess={onPaymentSuccess}
                           />
-                        )}
+                        ) : invoice.status === "paid" ? (
+                          <Badge variant="default" className="bg-green-500/20 text-green-600 border-green-500/30">
+                            Paid
+                          </Badge>
+                        ) : null}
                       </TableCell>
                     </motion.tr>
                   ))}
