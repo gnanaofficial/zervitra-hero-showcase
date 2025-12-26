@@ -61,6 +61,19 @@ interface DatabaseClient {
   address: string | null;
 }
 
+interface PastQuotation {
+  id: string;
+  quotation_id: string;
+  status: string;
+  amount: number;
+}
+
+interface PastInvoice {
+  id: string;
+  invoice_id: string;
+  status: string;
+}
+
 const defaultServices: ServiceItem[] = [
   { id: "1", name: "Website Development", price: 500, quantity: 1 },
   { id: "2", name: "UI/UX Design", price: 300, quantity: 1 },
@@ -92,6 +105,10 @@ const InvoiceGenerator = () => {
   } | null>(null);
 
   const [services, setServices] = useState<ServiceItem[]>(defaultServices);
+  const [pastQuotations, setPastQuotations] = useState<PastQuotation[]>([]);
+  const [pastInvoices, setPastInvoices] = useState<PastInvoice[]>([]);
+  const [selectedQuotationId, setSelectedQuotationId] = useState<string>("");
+  const [useNewInvoiceId, setUseNewInvoiceId] = useState(true);
   
   const [settings, setSettings] = useState<InvoiceSettings>({
     gstPercentage: 18,
@@ -118,6 +135,11 @@ const InvoiceGenerator = () => {
 
   const handleClientSelect = async (clientUuid: string) => {
     setSelectedClientId(clientUuid);
+    setPastQuotations([]);
+    setPastInvoices([]);
+    setSelectedQuotationId("");
+    setUseNewInvoiceId(true);
+    
     const client = clients.find(c => c.id === clientUuid);
     if (client) {
       setClientDetails({
@@ -129,6 +151,38 @@ const InvoiceGenerator = () => {
         address: client.address || '',
         clientId: client.client_id || `TEMP-${client.id.substring(0, 8).toUpperCase()}`,
       });
+
+      // Fetch past quotations and invoices for this client
+      const [quotationsResult, invoicesResult] = await Promise.all([
+        supabase
+          .from('quotations')
+          .select('id, quotation_id, status, amount')
+          .eq('client_id', clientUuid)
+          .in('status', ['accepted', 'sent', 'pending'])
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('invoices')
+          .select('id, invoice_id, status')
+          .eq('client_id', clientUuid)
+          .order('created_at', { ascending: false })
+      ]);
+
+      if (quotationsResult.data) {
+        setPastQuotations(quotationsResult.data.map(q => ({
+          id: q.id,
+          quotation_id: q.quotation_id || '',
+          status: q.status,
+          amount: Number(q.amount) || 0
+        })));
+      }
+
+      if (invoicesResult.data) {
+        setPastInvoices(invoicesResult.data.map(i => ({
+          id: i.id,
+          invoice_id: i.invoice_id || '',
+          status: i.status
+        })));
+      }
 
       // Generate Invoice ID using database function
       try {
@@ -214,6 +268,23 @@ const InvoiceGenerator = () => {
 
     setIsSavingDraft(true);
     try {
+      // Check if invoice ID already exists
+      const { data: existingInvoice } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('invoice_id', invoiceId)
+        .maybeSingle();
+
+      if (existingInvoice) {
+        toast({
+          title: "Error",
+          description: `Invoice ID "${invoiceId}" already exists. Please use a different ID.`,
+          variant: "destructive"
+        });
+        setIsSavingDraft(false);
+        return;
+      }
+
       const { data: projects } = await supabase
         .from('projects')
         .select('id')
@@ -242,6 +313,7 @@ const InvoiceGenerator = () => {
         .insert({
           client_id: selectedClientId,
           project_id: projects[0].id,
+          quotation_id: selectedQuotationId && selectedQuotationId !== 'none' ? selectedQuotationId : null,
           amount: calculations.subtotal,
           currency: 'USD',
           status: 'draft',
@@ -295,6 +367,23 @@ const InvoiceGenerator = () => {
 
     setIsSending(true);
     try {
+      // Check if invoice ID already exists
+      const { data: existingInvoice } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('invoice_id', invoiceId)
+        .maybeSingle();
+
+      if (existingInvoice) {
+        toast({
+          title: "Error",
+          description: `Invoice ID "${invoiceId}" already exists. Please use a different ID.`,
+          variant: "destructive"
+        });
+        setIsSending(false);
+        return;
+      }
+
       const { data: projects } = await supabase
         .from('projects')
         .select('id')
@@ -324,6 +413,7 @@ const InvoiceGenerator = () => {
         .insert({
           client_id: selectedClientId,
           project_id: projects[0].id,
+          quotation_id: selectedQuotationId && selectedQuotationId !== 'none' ? selectedQuotationId : null,
           amount: calculations.subtotal,
           currency: 'USD',
           status: 'sent',
@@ -474,6 +564,78 @@ const InvoiceGenerator = () => {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    {/* Quotation selector for linking invoice to accepted quotation */}
+                    {pastQuotations.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>Link to Quotation (Optional)</Label>
+                        <Select value={selectedQuotationId} onValueChange={setSelectedQuotationId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select accepted quotation..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No quotation link</SelectItem>
+                            {pastQuotations.map((q) => (
+                              <SelectItem key={q.id} value={q.id}>
+                                {q.quotation_id} - ${q.amount.toFixed(2)} ({q.status})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Client ID</Label>
+                        <Input
+                          value={clientDetails.clientId}
+                          onChange={(e) => setClientDetails({ ...clientDetails, clientId: e.target.value })}
+                          placeholder="EA701-IND-25C"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Invoice ID</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={invoiceId}
+                            onChange={(e) => setInvoiceId(e.target.value)}
+                            placeholder="IN1-FY25-..."
+                            className="flex-1"
+                          />
+                          {pastInvoices.length > 0 && (
+                            <Select 
+                              value={useNewInvoiceId ? "new" : invoiceId}
+                              onValueChange={(val) => {
+                                if (val === "new") {
+                                  setUseNewInvoiceId(true);
+                                } else {
+                                  setUseNewInvoiceId(false);
+                                  setInvoiceId(val);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-[160px]">
+                                <SelectValue placeholder="Select..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="new">+ New Invoice</SelectItem>
+                                {pastInvoices.map((inv) => (
+                                  <SelectItem key={inv.id} value={inv.invoice_id}>
+                                    {inv.invoice_id} ({inv.status})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                        {pastInvoices.length > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            {pastInvoices.length} past invoice(s) for this client
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">

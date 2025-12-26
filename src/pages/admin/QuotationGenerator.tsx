@@ -343,6 +343,23 @@ const QuotationGenerator = () => {
 
     setIsSavingDraft(true);
     try {
+      // Check if quotation ID already exists
+      const { data: existingQuotation } = await supabase
+        .from('quotations')
+        .select('id')
+        .eq('quotation_id', quotationId)
+        .maybeSingle();
+
+      if (existingQuotation) {
+        toast({
+          title: "Error",
+          description: `Quotation ID "${quotationId}" already exists. Please use a different ID.`,
+          variant: "destructive"
+        });
+        setIsSavingDraft(false);
+        return;
+      }
+
       // Get client's project
       const { data: projects } = await supabase
         .from('projects')
@@ -463,6 +480,23 @@ const QuotationGenerator = () => {
 
     setIsSending(true);
     try {
+      // Check if quotation ID already exists
+      const { data: existingQuotation } = await supabase
+        .from('quotations')
+        .select('id')
+        .eq('quotation_id', quotationId)
+        .maybeSingle();
+
+      if (existingQuotation) {
+        toast({
+          title: "Error",
+          description: `Quotation ID "${quotationId}" already exists. Please use a different ID.`,
+          variant: "destructive"
+        });
+        setIsSending(false);
+        return;
+      }
+
       // Get client's project
       const { data: projects } = await supabase
         .from('projects')
