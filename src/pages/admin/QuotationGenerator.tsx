@@ -75,6 +75,20 @@ interface DatabaseClient {
   country: string | null;
 }
 
+interface PastQuotation {
+  id: string;
+  quotation_id: string;
+  status: string;
+  created_at: string;
+}
+
+interface PastInvoice {
+  id: string;
+  invoice_id: string;
+  status: string;
+  created_at: string;
+}
+
 const defaultServices: ServiceItem[] = [
   { id: "1", name: "UI/UX", price: 45.95, discount: 10.25, isFree: false },
   { id: "2", name: "FRONT END", price: 57.44, discount: 9.00, isFree: false },
@@ -133,6 +147,9 @@ const QuotationGenerator = () => {
   });
 
   const [selectedAddons, setSelectedAddons] = useState<string[]>(complimentaryAddons);
+  const [pastQuotations, setPastQuotations] = useState<PastQuotation[]>([]);
+  const [pastInvoices, setPastInvoices] = useState<PastInvoice[]>([]);
+  const [useNewQuotationId, setUseNewQuotationId] = useState(true);
 
   useEffect(() => {
     fetchClients();
@@ -154,6 +171,10 @@ const QuotationGenerator = () => {
 
   const handleClientSelect = async (clientUuid: string) => {
     setSelectedClientId(clientUuid);
+    setPastQuotations([]);
+    setPastInvoices([]);
+    setUseNewQuotationId(true);
+    
     const client = clients.find(c => c.id === clientUuid);
     if (client) {
       const fullAddress = [client.address, client.city, client.state, client.country]
@@ -169,6 +190,38 @@ const QuotationGenerator = () => {
         address: fullAddress,
         clientId: client.client_id || `TEMP-${client.id.substring(0, 8).toUpperCase()}`,
       });
+
+      // Fetch past quotations and invoices for this client
+      const [quotationsResult, invoicesResult] = await Promise.all([
+        supabase
+          .from('quotations')
+          .select('id, quotation_id, status, created_at')
+          .eq('client_id', clientUuid)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('invoices')
+          .select('id, invoice_id, status, created_at')
+          .eq('client_id', clientUuid)
+          .order('created_at', { ascending: false })
+      ]);
+
+      if (quotationsResult.data) {
+        setPastQuotations(quotationsResult.data.map(q => ({
+          id: q.id,
+          quotation_id: q.quotation_id || '',
+          status: q.status,
+          created_at: q.created_at
+        })));
+      }
+
+      if (invoicesResult.data) {
+        setPastInvoices(invoicesResult.data.map(i => ({
+          id: i.id,
+          invoice_id: i.invoice_id || '',
+          status: i.status,
+          created_at: i.created_at
+        })));
+      }
 
       // Generate Quotation ID using database function
       try {
@@ -627,12 +680,69 @@ const QuotationGenerator = () => {
                     </div>
                     <div className="space-y-2">
                       <Label>Quotation ID</Label>
-                      <Input
-                        value={quotationId}
-                        onChange={(e) => setQuotationId(e.target.value)}
-                        placeholder="QN1-..."
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          value={quotationId}
+                          onChange={(e) => setQuotationId(e.target.value)}
+                          placeholder="QN1-..."
+                          className="flex-1"
+                        />
+                        {pastQuotations.length > 0 && (
+                          <Select 
+                            value={useNewQuotationId ? "new" : quotationId}
+                            onValueChange={(val) => {
+                              if (val === "new") {
+                                setUseNewQuotationId(true);
+                              } else {
+                                setUseNewQuotationId(false);
+                                setQuotationId(val);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Select..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="new">+ New Quotation</SelectItem>
+                              {pastQuotations.map((q) => (
+                                <SelectItem key={q.id} value={q.quotation_id}>
+                                  {q.quotation_id} ({q.status})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                      {pastQuotations.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {pastQuotations.length} past quotation(s) found for this client
+                        </p>
+                      )}
                     </div>
+                    {pastInvoices.length > 0 && (
+                      <div className="p-3 rounded-lg bg-secondary/30 border border-border/30">
+                        <p className="text-sm font-medium text-muted-foreground mb-2">Past Invoices</p>
+                        <div className="flex flex-wrap gap-2">
+                          {pastInvoices.slice(0, 5).map((inv) => (
+                            <span 
+                              key={inv.id} 
+                              className={`text-xs px-2 py-1 rounded ${
+                                inv.status === 'paid' 
+                                  ? 'bg-green-500/20 text-green-400' 
+                                  : inv.status === 'pending'
+                                  ? 'bg-yellow-500/20 text-yellow-400'
+                                  : 'bg-muted text-muted-foreground'
+                              }`}
+                            >
+                              {inv.invoice_id} ({inv.status})
+                            </span>
+                          ))}
+                          {pastInvoices.length > 5 && (
+                            <span className="text-xs text-muted-foreground">+{pastInvoices.length - 5} more</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Email</Label>
