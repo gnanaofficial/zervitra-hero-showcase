@@ -25,6 +25,9 @@ import {
 import { format, addDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { COMPANY_BANK_DETAILS, generateUPILink } from "@/lib/bank-details";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 interface ServiceItem {
   id: string;
@@ -668,8 +671,41 @@ const InvoiceGenerator = () => {
                       </div>
                     </div>
 
+                    {/* Bank Details & QR Code Section */}
+                    <div className="mt-8 p-6 bg-gray-50 rounded-xl">
+                      <div className="grid grid-cols-2 gap-6">
+                        {/* Bank Details */}
+                        <div>
+                          <h4 className="font-bold text-gray-800 mb-3 text-sm uppercase tracking-wide">Bank Transfer Details</h4>
+                          <div className="space-y-1 text-sm">
+                            <p><span className="text-gray-500">Bank:</span> {COMPANY_BANK_DETAILS.bankName}</p>
+                            <p><span className="text-gray-500">Account Holder:</span> {COMPANY_BANK_DETAILS.accountHolderName}</p>
+                            <p><span className="text-gray-500">Account No:</span> {COMPANY_BANK_DETAILS.accountNumber}</p>
+                            <p><span className="text-gray-500">IFSC:</span> {COMPANY_BANK_DETAILS.ifscCode}</p>
+                            <p><span className="text-gray-500">Branch:</span> {COMPANY_BANK_DETAILS.branchName}</p>
+                            {COMPANY_BANK_DETAILS.upiId && (
+                              <p><span className="text-gray-500">UPI ID:</span> {COMPANY_BANK_DETAILS.upiId}</p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* QR Code */}
+                        <div className="text-center">
+                          <h4 className="font-bold text-gray-800 mb-3 text-sm uppercase tracking-wide">Scan to Pay (UPI)</h4>
+                          <div className="inline-block p-3 bg-white rounded-xl shadow-sm border">
+                            <img 
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(generateUPILink(calculations.totalINR, invoiceId))}`}
+                              alt="UPI Payment QR Code"
+                              className="w-28 h-28"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">₹{calculations.totalINR.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Footer */}
-                    <div className="mt-12 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
+                    <div className="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
                       <p>Thank you for your business!</p>
                       <p className="mt-1">Payment due within {settings.paymentTermsDays} days</p>
                     </div>
