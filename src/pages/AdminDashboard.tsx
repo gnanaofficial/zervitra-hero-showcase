@@ -17,8 +17,8 @@ import {
   Clock,
   CheckCircle,
   Users,
-  UserPlus,
   FilePlus,
+  FileEdit,
 } from "lucide-react";
 import { ExpandButton } from "@/components/dashboard/ExpandButton";
 import { ExpandedViewContainer } from "@/components/dashboard/ExpandedViewContainer";
@@ -26,6 +26,8 @@ import { ExpandedProjectsTable } from "@/components/dashboard/ExpandedProjectsTa
 import { ExpandedQuotationsTable } from "@/components/dashboard/ExpandedQuotationsTable";
 import { ExpandedInvoicesTable } from "@/components/dashboard/ExpandedInvoicesTable";
 import { CreateClientDialog } from "@/components/dashboard/CreateClientDialog";
+import { CreateAdminDialog } from "@/components/dashboard/CreateAdminDialog";
+import { DraftQuotationsSection } from "@/components/dashboard/DraftQuotationsSection";
 import {
   exportProjectsToCSV,
   exportProjectsToPDF,
@@ -156,6 +158,7 @@ const AdminDashboard = () => {
                     Create Quotation
                   </Button>
                   <CreateClientDialog onSuccess={refreshData} />
+                  <CreateAdminDialog onSuccess={refreshData} />
                 </div>
               </div>
               <p className="text-xl text-muted-foreground mb-8">
@@ -315,6 +318,28 @@ const AdminDashboard = () => {
 
               {/* Recent Quotations & Invoices */}
               <div className="space-y-8">
+                {/* Draft Quotations */}
+                <motion.div
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.8, delay: 0.1 }}
+                  className="premium-glass rounded-3xl p-6 border border-amber-500/20"
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2">
+                      <FileEdit className="w-5 h-5 text-amber-500" />
+                      <h3 className="text-xl font-semibold text-foreground">Draft Quotations</h3>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => navigate('/admin/quotation-generator')}>
+                      New Quotation
+                    </Button>
+                  </div>
+                  <DraftQuotationsSection 
+                    onEdit={(id) => navigate(`/admin/quotation-generator?edit=${id}`)}
+                    onRefresh={refreshData}
+                  />
+                </motion.div>
+
                 {/* Quotations */}
                 <motion.div
                   initial={{ opacity: 0, x: 30 }}
@@ -330,7 +355,7 @@ const AdminDashboard = () => {
                   </div>
 
                   <div className="space-y-3">
-                    {quotations.slice(0, 3).map((quote) => (
+                    {quotations.filter(q => q.status !== 'draft').slice(0, 3).map((quote) => (
                       <div key={quote.id} className="flex items-center justify-between p-3 rounded-xl bg-background/50 border border-border/30">
                         <div>
                           <h4 className="font-medium text-foreground text-sm">
@@ -351,10 +376,10 @@ const AdminDashboard = () => {
                       </div>
                     ))}
 
-                    {quotations.length === 0 && (
+                    {quotations.filter(q => q.status !== 'draft').length === 0 && (
                       <div className="text-center py-6">
                         <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">No quotations yet.</p>
+                        <p className="text-sm text-muted-foreground">No sent quotations yet.</p>
                       </div>
                     )}
                   </div>

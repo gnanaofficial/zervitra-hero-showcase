@@ -2,25 +2,26 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Eye, EyeOff, Loader2, Shield } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
+import zerviraLogo from '@/Resources/logo/zervimain.svg';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { user, signIn } = useAuth();
+  const { user, role, signIn } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      navigate('/admin/dashboard');
+    if (user && role === 'admin') {
+      navigate('/admin/dashboard', { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, role, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,29 +42,34 @@ const AdminLogin = () => {
   return (
     <>
       <Helmet>
-        <title>Admin Login - Zervitra</title>
-        <meta name="description" content="Admin portal access for Zervitra platform" />
+        <title>Admin Access - Zervitra</title>
+        <meta name="robots" content="noindex, nofollow" />
       </Helmet>
 
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-destructive/5 p-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
           className="w-full max-w-md"
         >
-          <div className="bg-card border border-border rounded-2xl shadow-lg p-8">
+          <div className="bg-card border border-destructive/20 rounded-2xl shadow-lg p-8">
             <div className="flex flex-col items-center mb-8">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                <Shield className="w-8 h-8 text-primary" />
+              <img 
+                src={zerviraLogo} 
+                alt="Zervitra" 
+                className="h-12 w-auto mb-4"
+              />
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldCheck className="w-6 h-6 text-destructive" />
+                <h1 className="text-3xl font-bold text-foreground">Admin Portal</h1>
               </div>
-              <h1 className="text-3xl font-bold text-foreground">Admin Portal</h1>
-              <p className="text-muted-foreground mt-2">Sign in to access admin dashboard</p>
+              <p className="text-muted-foreground text-sm">Authorized personnel only</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Admin Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -72,7 +78,7 @@ const AdminLogin = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoComplete="email"
-                  className="h-11"
+                  className="h-11 border-destructive/20 focus:border-destructive"
                 />
               </div>
 
@@ -87,7 +93,7 @@ const AdminLogin = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="current-password"
-                    className="h-11 pr-10"
+                    className="h-11 pr-10 border-destructive/20 focus:border-destructive"
                   />
                   <button
                     type="button"
@@ -103,30 +109,24 @@ const AdminLogin = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11"
+                variant="destructive"
+                className="w-full h-11 gap-2"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Authenticating...
                   </>
                 ) : (
-                  'Sign In'
+                  <>
+                    <ShieldCheck className="h-4 w-4" />
+                    Access Admin Portal
+                  </>
                 )}
               </Button>
-
-              <div className="text-center">
-                <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                  Forgot password?
-                </Link>
-              </div>
             </form>
 
             <div className="mt-6 text-center text-sm">
-              <Link to="/user-login" className="text-muted-foreground hover:text-primary transition-colors">
-                Client login
-              </Link>
-              <span className="mx-2 text-muted-foreground">•</span>
               <Link to="/" className="text-muted-foreground hover:text-primary transition-colors">
                 Back to home
               </Link>

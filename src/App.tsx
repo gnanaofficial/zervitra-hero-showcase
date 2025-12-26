@@ -18,7 +18,7 @@ const About = lazy(() => import("./pages/About"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Login = lazy(() => import("./pages/Login"));
-// AdminLogin removed - using unified Login page
+const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const QuotationGenerator = lazy(() => import("./pages/admin/QuotationGenerator"));
 const InvoiceGenerator = lazy(() => import("./pages/admin/InvoiceGenerator"));
@@ -57,8 +57,8 @@ const App = () => (
                   <Route path="/pricing" element={<Pricing />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/user-login" element={<Login />} />
-                  <Route path="/admin" element={<Login />} />
-                  <Route path="/admin-login" element={<Login />} />
+                  {/* Secure admin access URL - not linked anywhere publicly */}
+                  <Route path="/zrv-admin-portal-x7k9m2" element={<AdminLogin />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
 
