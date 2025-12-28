@@ -346,6 +346,40 @@ const InvoiceGenerator = () => {
     }
   };
 
+  // Generate PDF and return base64
+  const generatePdfBase64 = async (): Promise<string | null> => {
+    const printContent = printRef.current;
+    if (!printContent) return null;
+
+    try {
+      const canvas = await html2canvas(printContent, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      
+      // Get base64 without the data:application/pdf;base64, prefix
+      const pdfBase64 = pdf.output('datauristring').split(',')[1];
+      return pdfBase64;
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      return null;
+    }
+  };
+
   // Send invoice (saves to DB and sends email)
   const handleSendInvoice = async () => {
     if (!selectedClientId) {
@@ -400,6 +434,14 @@ const InvoiceGenerator = () => {
         return;
       }
 
+      // Generate PDF
+      toast({
+        title: "Generating PDF...",
+        description: "Please wait while we prepare the invoice"
+      });
+      
+      const pdfBase64 = await generatePdfBase64();
+
       const servicesData = services.map(s => ({
         description: s.name,
         amount: s.price * s.quantity,
@@ -431,19 +473,27 @@ const InvoiceGenerator = () => {
 
       if (error) throw error;
 
-      // Send email
-      const response = await supabase.functions.invoke('send-quotation-email', {
+      // Send email with PDF attachment
+      const response = await supabase.functions.invoke('send-invoice-email', {
         body: {
           to: clientDetails.email,
           clientName: clientDetails.name,
-          quotationId: invoiceId,
+          invoiceId: invoiceId,
           amount: calculations.totalUSD.toFixed(2),
           currency: 'USD',
-          validUntil: format(dueDate, "MMMM d, yyyy"),
+          dueDate: format(dueDate, "MMMM d, yyyy"),
           services: services.map(s => ({
             description: s.name,
             amount: s.price * s.quantity
-          }))
+          })),
+          bankDetails: {
+            bankName: COMPANY_BANK_DETAILS.bankName,
+            accountName: COMPANY_BANK_DETAILS.accountHolderName,
+            accountNumber: COMPANY_BANK_DETAILS.accountNumber,
+            ifscCode: COMPANY_BANK_DETAILS.ifscCode,
+            upiId: COMPANY_BANK_DETAILS.upiId || ''
+          },
+          pdfBase64: pdfBase64
         }
       });
 
@@ -451,7 +501,7 @@ const InvoiceGenerator = () => {
 
       toast({
         title: "Sent!",
-        description: "Invoice saved and sent to client's email"
+        description: "Invoice saved and sent to client's email with PDF attachment"
       });
     } catch (error: any) {
       toast({

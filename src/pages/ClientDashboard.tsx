@@ -395,7 +395,7 @@ const ClientDashboard = () => {
                               {invoice.status}
                             </Badge>
                           </div>
-                          {(invoice.status === 'pending' || invoice.status === 'overdue') ? (
+                          {(invoice.status === 'pending' || invoice.status === 'overdue' || invoice.status === 'sent') ? (
                             <PaymentButton
                               invoiceId={invoice.id}
                               amount={(invoice as any).total || invoice.amount}

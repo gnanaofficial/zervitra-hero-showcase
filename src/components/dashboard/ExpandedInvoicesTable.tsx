@@ -151,6 +151,7 @@ export const ExpandedInvoicesTable = memo(({
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="sent">Sent</SelectItem>
               <SelectItem value="paid">Paid</SelectItem>
               <SelectItem value="overdue">Overdue</SelectItem>
             </SelectContent>
@@ -272,7 +273,7 @@ export const ExpandedInvoicesTable = memo(({
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        {invoice.status === "pending" || invoice.status === "overdue" ? (
+                        {invoice.status === "pending" || invoice.status === "overdue" || invoice.status === "sent" ? (
                           <PaymentButton
                             invoiceId={invoice.id}
                             amount={invoice.total || invoice.amount}
