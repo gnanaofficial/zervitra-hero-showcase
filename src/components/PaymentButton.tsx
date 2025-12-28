@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CreditCard, ChevronDown, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -22,9 +23,11 @@ import {
   formatCurrency
 } from '@/lib/payments';
 import BankDetailsCard from '@/components/BankDetailsCard';
+import PaymentVerificationForm from '@/components/PaymentVerificationForm';
 
 interface PaymentButtonProps {
   invoiceId: string;
+  clientId: string;
   amount: number;
   currency?: string;
   onPaymentSuccess?: () => void;
@@ -33,6 +36,7 @@ interface PaymentButtonProps {
 
 const PaymentButton = ({ 
   invoiceId, 
+  clientId,
   amount, 
   currency = 'USD',
   onPaymentSuccess,
@@ -114,19 +118,36 @@ const PaymentButton = ({
       </DropdownMenu>
 
       <Dialog open={showBankDetails} onOpenChange={setShowBankDetails}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Bank Transfer Details</DialogTitle>
+            <DialogTitle>Bank Transfer / UPI Payment</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground mb-4">
-              Transfer <span className="font-semibold text-foreground">{formatCurrency(amount, currency)}</span> to the following account:
-            </p>
-            <BankDetailsCard invoiceId={invoiceId} amount={amount} />
-            <p className="text-xs text-muted-foreground mt-4">
-              After completing the transfer, please send the payment confirmation to our support team.
-            </p>
-          </div>
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="details">Bank Details</TabsTrigger>
+              <TabsTrigger value="verify">Submit Verification</TabsTrigger>
+            </TabsList>
+            <TabsContent value="details" className="mt-4">
+              <p className="text-sm text-muted-foreground mb-4">
+                Transfer <span className="font-semibold text-foreground">{formatCurrency(amount, currency)}</span> to the following account:
+              </p>
+              <BankDetailsCard invoiceId={invoiceId} amount={amount} />
+              <p className="text-xs text-muted-foreground mt-4">
+                After completing the transfer, go to the "Submit Verification" tab to upload proof.
+              </p>
+            </TabsContent>
+            <TabsContent value="verify" className="mt-4">
+              <PaymentVerificationForm 
+                invoiceId={invoiceId}
+                clientId={clientId}
+                amount={amount}
+                onSuccess={() => {
+                  setShowBankDetails(false);
+                  onPaymentSuccess?.();
+                }}
+              />
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </>

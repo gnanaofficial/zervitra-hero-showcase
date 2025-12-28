@@ -363,7 +363,7 @@ const Dashboard = () => {
                               {invoice.status}
                             </Badge>
                           </div>
-                          {invoice.status === 'pending' && <PaymentButton invoiceId={invoice.id} amount={invoice.amount} currency={invoice.currency} onPaymentSuccess={refreshData} />}
+                          {invoice.status === 'pending' && <PaymentButton invoiceId={invoice.id} clientId={invoice.client_id} amount={invoice.amount} currency={invoice.currency} onPaymentSuccess={refreshData} />}
                         </div>
                       </div>)}
                     

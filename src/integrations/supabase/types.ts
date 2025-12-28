@@ -266,6 +266,72 @@ export type Database = {
           },
         ]
       }
+      payment_verifications: {
+        Row: {
+          amount: number
+          client_id: string
+          created_at: string
+          id: string
+          invoice_id: string
+          payment_mode: string
+          remarks: string | null
+          screenshot_url: string | null
+          status: string
+          submitted_at: string
+          updated_at: string
+          utr_number: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          amount: number
+          client_id: string
+          created_at?: string
+          id?: string
+          invoice_id: string
+          payment_mode?: string
+          remarks?: string | null
+          screenshot_url?: string | null
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          utr_number: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          amount?: number
+          client_id?: string
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          payment_mode?: string
+          remarks?: string | null
+          screenshot_url?: string | null
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          utr_number?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_verifications_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_verifications_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           client_id: string

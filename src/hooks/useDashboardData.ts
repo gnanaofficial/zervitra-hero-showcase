@@ -25,6 +25,7 @@ interface Quotation {
 interface Invoice {
   id: string;
   project_id: string;
+  client_id: string;
   amount: number;
   total?: number;
   currency: string;

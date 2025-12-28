@@ -28,6 +28,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 interface Invoice {
   id: string;
   project_id: string;
+  client_id: string;
   amount: number;
   total?: number;
   currency: string;
@@ -276,6 +277,7 @@ export const ExpandedInvoicesTable = memo(({
                         {invoice.status === "pending" || invoice.status === "overdue" || invoice.status === "sent" ? (
                           <PaymentButton
                             invoiceId={invoice.id}
+                            clientId={invoice.client_id}
                             amount={invoice.total || invoice.amount}
                             currency={invoice.currency}
                             onPaymentSuccess={onPaymentSuccess}

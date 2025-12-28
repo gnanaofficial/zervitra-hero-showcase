@@ -398,6 +398,7 @@ const ClientDashboard = () => {
                           {(invoice.status === 'pending' || invoice.status === 'overdue' || invoice.status === 'sent') ? (
                             <PaymentButton
                               invoiceId={invoice.id}
+                              clientId={invoice.client_id}
                               amount={(invoice as any).total || invoice.amount}
                               currency={invoice.currency}
                               onPaymentSuccess={refreshData}
