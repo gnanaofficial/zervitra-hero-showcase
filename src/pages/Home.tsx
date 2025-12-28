@@ -4,7 +4,6 @@ import Hero from "@/components/Hero";
 import OurServices from "@/components/OurServices";
 import Analytics from "@/components/Analytics";
 import WavyFlow from "@/components/WavyFlow";
-import CalComEmbed from "@/components/CalComEmbed";
 import Footer from "@/components/Footer";
 
 const Home = () => {
@@ -45,11 +44,6 @@ const Home = () => {
         <div className="relative">
           <WavyFlow />
         </div>
-
-        {/* Cal.com Embed Section */}
-        <section className="relative py-20">
-          <CalComEmbed />
-        </section>
 
         {/* Footer */}
         <Footer />

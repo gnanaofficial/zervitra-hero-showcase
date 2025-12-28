@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { Calendar } from "lucide-react";
 
 function FloatingPaths({ position }: { position: number }) {
   const paths = Array.from({ length: 36 }, (_, i) => ({
@@ -75,13 +76,23 @@ const Hero = () => {
           professionals designed to support your growth
         </p>
 
-        {/* CTA Button */}
-        <div className="animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
+        {/* CTA Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
           <Button
             size="lg"
             className="rounded-full bg-gradient-to-r from-primary to-hero-to hover:from-hero-from hover:to-primary text-white px-10 py-7 text-xl font-semibold shadow-[var(--shadow-button)] hover:shadow-[var(--shadow-glow)] transition-all duration-300 transform hover:scale-105"
+            onClick={() => window.open("mailto:hello@zervitra.com?subject=Project Inquiry", "_blank")}
           >
             Start Your Project
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="rounded-full border-2 border-primary/30 text-foreground hover:bg-primary/10 px-10 py-7 text-xl font-semibold transition-all duration-300 transform hover:scale-105"
+            onClick={() => window.open("https://cal.com/zervitra/30min", "_blank")}
+          >
+            <Calendar className="w-5 h-5 mr-2" />
+            Schedule a Call
           </Button>
         </div>
       </div>
