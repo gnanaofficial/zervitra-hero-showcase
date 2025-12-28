@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Mail, Phone, MapPin, Calendar, ExternalLink } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Mail, Phone, MapPin } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -93,10 +92,18 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/services/social-media-marketing"
+                  to="/services/digital-marketing"
                   className="text-muted-foreground hover:text-primary transition-colors"
                 >
-                  Social Media Marketing
+                  Digital Marketing
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/services/ai-automations"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  AI Automations
                 </Link>
               </li>
             </ul>
@@ -110,7 +117,7 @@ const Footer = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
           >
             <h3 className="text-lg font-semibold text-foreground mb-6">Company</h3>
-            <ul className="space-y-3 mb-6">
+            <ul className="space-y-3">
               <li>
                 <Link
                   to="/about"
@@ -137,23 +144,21 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/login"
+                  to="/terms"
                   className="text-muted-foreground hover:text-primary transition-colors"
                 >
-                  Client Login
+                  Terms & Conditions
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/privacy"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Privacy Policy
                 </Link>
               </li>
             </ul>
-            
-            {/* Quick CTA */}
-            <Button
-              size="sm"
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300"
-              onClick={() => window.open("mailto:hello@zervitra.com?subject=Project Inquiry", "_blank")}
-            >
-              <Calendar className="w-4 h-4 mr-2" />
-              Get Started
-            </Button>
           </motion.div>
         </div>
 

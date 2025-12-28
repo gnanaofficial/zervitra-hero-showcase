@@ -33,8 +33,12 @@ const WebDevelopment = lazy(() => import("./pages/services/WebDevelopment"));
 const AppDevelopment = lazy(() => import("./pages/services/AppDevelopment"));
 const UIUXDesign = lazy(() => import("./pages/services/UIUXDesign"));
 const MVPProduct = lazy(() => import("./pages/services/MVPProduct"));
-const SocialMediaMarketing = lazy(() => import("./pages/services/SocialMediaMarketing"));
-const MoreServices = lazy(() => import("./pages/services/MoreServices"));
+const DigitalMarketing = lazy(() => import("./pages/services/DigitalMarketing"));
+const AIAutomations = lazy(() => import("./pages/services/AIAutomations"));
+
+// Legal pages
+const TermsAndConditions = lazy(() => import("./pages/legal/TermsAndConditions"));
+const PrivacyPolicy = lazy(() => import("./pages/legal/PrivacyPolicy"));
 
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -58,7 +62,7 @@ const App = () => (
                   <Route path="/login" element={<Login />} />
                   <Route path="/user-login" element={<Login />} />
                   {/* Secure admin access URL - not linked anywhere publicly */}
-                  <Route path="/zrv-admin-portal-x7k9m2" element={<AdminLogin />} />
+                  <Route path="/zervi-admin" element={<AdminLogin />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
 
@@ -67,8 +71,12 @@ const App = () => (
                   <Route path="/services/app-development" element={<AppDevelopment />} />
                   <Route path="/services/ui-ux-design" element={<UIUXDesign />} />
                   <Route path="/services/mvp-product" element={<MVPProduct />} />
-                  <Route path="/services/social-media-marketing" element={<SocialMediaMarketing />} />
-                  <Route path="/services/more" element={<MoreServices />} />
+                  <Route path="/services/digital-marketing" element={<DigitalMarketing />} />
+                  <Route path="/services/ai-automations" element={<AIAutomations />} />
+
+                  {/* Legal pages */}
+                  <Route path="/terms" element={<TermsAndConditions />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
 
                   {/* Protected routes - Role-based */}
                   <Route

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BarChart, Bar, XAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, ResponsiveContainer, LineChart, Line } from "recharts";
 
 const projectData = [
   { name: "Aug", value: 320, color: "hsl(263 70% 60%)" },
@@ -14,12 +14,6 @@ const activeUsersData = [
   { name: "Dec", users: 400 },
 ];
 
-const techStackData = [
-  { name: "React", value: 30, color: "hsl(142 76% 36%)" },
-  { name: "Flutter", value: 25, color: "hsl(210 100% 60%)" },
-  { name: "Node.js", value: 25, color: "hsl(263 70% 60%)" },
-  { name: "Figma", value: 20, color: "hsl(220 100% 70%)" },
-];
 
 const serviceData = [
   { name: "Sep", value: 20 },
@@ -120,11 +114,8 @@ const Analytics = () => {
                     radius={[4, 4, 0, 0]}
                     animationDuration={1500}
                     animationBegin={800}
-                  >
-                    {projectData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
+                    fill="hsl(142 76% 36%)"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -269,58 +260,6 @@ const Analytics = () => {
             </div>
           </div>
 
-          {/* Tech Stack Popularity Card */}
-          <div className={`md:col-span-2 lg:col-span-2 premium-glass rounded-3xl p-8 hover-lift transition-all duration-700 ${
-            isVisible ? 'animate-slide-in-right' : ''
-          }`} style={{ animationDelay: '1.1s' }}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground mb-6">Tech stack popularity</h3>
-                
-                <div className="flex justify-center">
-                  <div className="relative w-32 h-32">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={techStackData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={35}
-                          outerRadius={60}
-                          paddingAngle={2}
-                          dataKey="value"
-                          animationBegin={1500}
-                          animationDuration={1500}
-                        >
-                          {techStackData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-2xl font-bold text-foreground">30%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex flex-col justify-center">
-                <div className="space-y-4">
-                  {techStackData.map((item, index) => (
-                    <div key={item.name} className="flex items-center gap-3">
-                      <div 
-                        className="w-3 h-3 rounded-full animate-glow"
-                        style={{ backgroundColor: item.color, animationDelay: `${index * 0.2}s` }}
-                      />
-                      <span className="text-foreground font-medium">{item.name}</span>
-                      <span className="text-muted-foreground ml-auto">{item.value}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </section>

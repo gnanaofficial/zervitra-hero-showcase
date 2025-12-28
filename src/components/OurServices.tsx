@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Code, Smartphone, Palette, Rocket, Share2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Code, Smartphone, Palette, Rocket, Share2, Bot } from "lucide-react";
 
 interface ServiceCardProps {
   title: string;
@@ -55,7 +54,7 @@ const ServiceCard = ({ title, description, icon, route, index }: ServiceCardProp
       </p>
 
       {/* Features List */}
-      <ul className="space-y-2 mb-6">
+      <ul className="space-y-2">
         <li className="text-sm text-muted-foreground flex items-center">
           <span className="w-2 h-2 rounded-full bg-success mr-3"></span>
           Modern Tech Stack
@@ -69,14 +68,6 @@ const ServiceCard = ({ title, description, icon, route, index }: ServiceCardProp
           Performance Focused
         </li>
       </ul>
-
-      {/* CTA Button */}
-      <Button
-        variant="ghost"
-        className="w-full text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300"
-      >
-        Learn More
-      </Button>
 
       {/* Glossy overlay */}
       <div className="absolute inset-0 rounded-3xl bg-gradient-to-br 
@@ -114,16 +105,16 @@ const OurServices = () => {
       route: "/services/mvp-product"
     },
     {
-      title: "Social Media Marketing",
-      description: "Content and performance marketing strategies that grow your pipeline and brand awareness.",
+      title: "Digital Marketing",
+      description: "Complete social media management, content creation, and performance marketing to grow your brand.",
       icon: <Share2 className="w-8 h-8" />,
-      route: "/services/social-media-marketing"
+      route: "/services/digital-marketing"
     },
     {
-      title: "And More",
-      description: "Custom integrations, automation workflows, and strategic consulting for your unique needs.",
-      icon: <Plus className="w-8 h-8" />,
-      route: "/services/more"
+      title: "AI Automations",
+      description: "Smart automation workflows powered by AI to streamline operations and boost productivity.",
+      icon: <Bot className="w-8 h-8" />,
+      route: "/services/ai-automations"
     }
   ];
 
