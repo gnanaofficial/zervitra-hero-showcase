@@ -9,5 +9,20 @@ verify_jwt = false
 [functions.send-quotation-email]
 verify_jwt = false
 
+[functions.send-invoice-email]
+verify_jwt = false
+
 [functions.create-client]
 verify_jwt = true
+
+[functions.create-stripe-payment]
+verify_jwt = false
+
+[functions.create-razorpay-order]
+verify_jwt = false
+
+[functions.verify-razorpay-payment]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
