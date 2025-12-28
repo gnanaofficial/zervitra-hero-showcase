@@ -5,6 +5,7 @@ import OurServices from "@/components/OurServices";
 import Analytics from "@/components/Analytics";
 import WavyFlow from "@/components/WavyFlow";
 import Footer from "@/components/Footer";
+import FAQ from "@/components/FAQ";
 
 const Home = () => {
   return (
@@ -44,6 +45,9 @@ const Home = () => {
         <div className="relative">
           <WavyFlow />
         </div>
+
+        {/* FAQ Section */}
+        <FAQ />
 
         {/* Footer */}
         <Footer />
