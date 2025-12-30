@@ -25,13 +25,43 @@ serve(async (req) => {
       throw new Error("Stripe secret key not configured");
     }
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    // ======== AUTHENTICATION & AUTHORIZATION ========
+    // Get authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('Missing Authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Missing authorization header' }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
+    // Verify user with anon key client
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      console.error('Auth error:', authError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Invalid token' }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
+    console.log('Authenticated user:', user.id);
+
+    // Create service role client for database operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
     const stripe = new Stripe(stripeSecretKey, {
       apiVersion: "2023-10-16",
     });
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { invoiceId, amount, currency = "USD", customerEmail }: PaymentRequest = await req.json();
 
@@ -39,12 +69,14 @@ serve(async (req) => {
       throw new Error("Invoice ID and amount are required");
     }
 
-    // Fetch invoice details
+    // Fetch invoice details with client info for ownership verification
     const { data: invoice, error: invoiceError } = await supabase
       .from("invoices")
       .select(`
         *,
         clients (
+          id,
+          user_id,
           company_name,
           contact_email
         )
@@ -53,8 +85,21 @@ serve(async (req) => {
       .single();
 
     if (invoiceError || !invoice) {
+      console.error('Invoice not found:', invoiceError);
       throw new Error("Invoice not found");
     }
+
+    // ======== OWNERSHIP VERIFICATION ========
+    // Verify the authenticated user owns this invoice
+    if (invoice.clients?.user_id !== user.id) {
+      console.error('Forbidden: User', user.id, 'does not own invoice', invoiceId);
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: You do not own this invoice' }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+      );
+    }
+
+    console.log('Ownership verified for invoice:', invoiceId);
 
     const email = customerEmail || invoice.clients?.contact_email;
 
@@ -77,12 +122,13 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      success_url: `${origin}/client-dashboard?payment=success&invoice=${invoiceId}`,
-      cancel_url: `${origin}/client-dashboard?payment=cancelled&invoice=${invoiceId}`,
+      success_url: `${origin}/client/dashboard?payment=success&invoice=${invoiceId}`,
+      cancel_url: `${origin}/client/dashboard?payment=cancelled&invoice=${invoiceId}`,
       customer_email: email,
       metadata: {
         invoiceId: invoiceId,
         invoiceNumber: invoice.invoice_id || "",
+        userId: user.id,
       },
     });
 
