@@ -67,7 +67,7 @@ const App = () => (
                   {/* Secure admin access URL - not linked anywhere publicly */}
                   <Route path="/zervi-admin" element={<AdminLogin />} />
                   {/* Secure manager access URL - not linked anywhere publicly */}
-                  <Route path="/manager-zevii" element={<ManagerLogin />} />
+                  <Route path="/manager-zervii" element={<ManagerLogin />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
 
