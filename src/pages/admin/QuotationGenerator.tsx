@@ -385,20 +385,42 @@ const QuotationGenerator = () => {
       
       if (pdfBlob) {
         const fileName = `${quotationId.replace(/[^a-zA-Z0-9-]/g, '_')}_${Date.now()}.pdf`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('quotations')
-          .upload(fileName, pdfBlob, {
-            contentType: 'application/pdf',
-            upsert: true
-          });
+        
+        // Convert blob to base64 for R2 upload
+        const reader = new FileReader();
+        const base64Promise = new Promise<string>((resolve) => {
+          reader.onloadend = () => {
+            const base64 = (reader.result as string).split(',')[1];
+            resolve(base64);
+          };
+          reader.readAsDataURL(pdfBlob);
+        });
+        
+        const base64Data = await base64Promise;
+        
+        // Upload to R2 via edge function
+        const { data: uploadData, error: uploadError } = await supabase.functions.invoke('upload-pdf-r2', {
+          body: {
+            fileName,
+            fileType: 'application/pdf',
+            fileData: base64Data,
+            folder: 'quotations'
+          }
+        });
 
         if (uploadError) {
-          console.error('PDF upload error:', uploadError);
-        } else {
-          const { data: urlData } = supabase.storage
+          console.error('R2 upload error:', uploadError);
+          // Fallback to Supabase storage if R2 fails
+          const { data: sbUpload, error: sbError } = await supabase.storage
             .from('quotations')
-            .getPublicUrl(fileName);
-          pdfUrl = urlData.publicUrl;
+            .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
+          
+          if (!sbError) {
+            const { data: urlData } = supabase.storage.from('quotations').getPublicUrl(fileName);
+            pdfUrl = urlData.publicUrl;
+          }
+        } else if (uploadData?.url) {
+          pdfUrl = uploadData.url;
         }
       }
 
@@ -522,18 +544,42 @@ const QuotationGenerator = () => {
       
       if (pdfBlob) {
         const fileName = `${quotationId.replace(/[^a-zA-Z0-9-]/g, '_')}_${Date.now()}.pdf`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('quotations')
-          .upload(fileName, pdfBlob, {
-            contentType: 'application/pdf',
-            upsert: true
-          });
+        
+        // Convert blob to base64 for R2 upload
+        const reader = new FileReader();
+        const base64Promise = new Promise<string>((resolve) => {
+          reader.onloadend = () => {
+            const base64 = (reader.result as string).split(',')[1];
+            resolve(base64);
+          };
+          reader.readAsDataURL(pdfBlob);
+        });
+        
+        const base64Data = await base64Promise;
+        
+        // Upload to R2 via edge function
+        const { data: uploadData, error: uploadError } = await supabase.functions.invoke('upload-pdf-r2', {
+          body: {
+            fileName,
+            fileType: 'application/pdf',
+            fileData: base64Data,
+            folder: 'quotations'
+          }
+        });
 
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage
+        if (uploadError) {
+          console.error('R2 upload error:', uploadError);
+          // Fallback to Supabase storage if R2 fails
+          const { data: sbUpload, error: sbError } = await supabase.storage
             .from('quotations')
-            .getPublicUrl(fileName);
-          pdfUrl = urlData.publicUrl;
+            .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
+          
+          if (!sbError) {
+            const { data: urlData } = supabase.storage.from('quotations').getPublicUrl(fileName);
+            pdfUrl = urlData.publicUrl;
+          }
+        } else if (uploadData?.url) {
+          pdfUrl = uploadData.url;
         }
       }
 

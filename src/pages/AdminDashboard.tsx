@@ -19,6 +19,7 @@ import {
   Users,
   FilePlus,
   FileEdit,
+  Bell,
 } from "lucide-react";
 import { ExpandButton } from "@/components/dashboard/ExpandButton";
 import { ExpandedViewContainer } from "@/components/dashboard/ExpandedViewContainer";
@@ -28,6 +29,7 @@ import { ExpandedInvoicesTable } from "@/components/dashboard/ExpandedInvoicesTa
 import { CreateClientDialog } from "@/components/dashboard/CreateClientDialog";
 import { CreateAdminDialog } from "@/components/dashboard/CreateAdminDialog";
 import { DraftQuotationsSection } from "@/components/dashboard/DraftQuotationsSection";
+import { QuotationResponsesSection } from "@/components/dashboard/QuotationResponsesSection";
 import {
   exportProjectsToCSV,
   exportProjectsToPDF,
@@ -316,8 +318,24 @@ const AdminDashboard = () => {
                 </div>
               </motion.div>
 
-              {/* Recent Quotations & Invoices */}
+              {/* Recent Quotations, Drafts & Client Responses */}
               <div className="space-y-8">
+                {/* Client Responses / Notifications */}
+                <motion.div
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.8, delay: 0.05 }}
+                  className="premium-glass rounded-3xl p-6 border border-primary/20"
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2">
+                      <Bell className="w-5 h-5 text-primary" />
+                      <h3 className="text-xl font-semibold text-foreground">Client Responses</h3>
+                    </div>
+                  </div>
+                  <QuotationResponsesSection onRefresh={refreshData} />
+                </motion.div>
+
                 {/* Draft Quotations */}
                 <motion.div
                   initial={{ opacity: 0, x: 30 }}

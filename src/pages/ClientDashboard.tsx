@@ -26,6 +26,7 @@ import { ExpandedProjectsTable } from "@/components/dashboard/ExpandedProjectsTa
 import { ExpandedQuotationsTable } from "@/components/dashboard/ExpandedQuotationsTable";
 import { ExpandedInvoicesTable } from "@/components/dashboard/ExpandedInvoicesTable";
 import { QuotationDetailDialog } from "@/components/dashboard/QuotationDetailDialog";
+import { InvoiceDetailDialog } from "@/components/dashboard/InvoiceDetailDialog";
 import {
   exportProjectsToCSV,
   exportProjectsToPDF,
@@ -47,6 +48,8 @@ const ClientDashboard = () => {
   const [paidInvoiceId, setPaidInvoiceId] = useState<string | null>(null);
   const [selectedQuotation, setSelectedQuotation] = useState<any>(null);
   const [showQuotationDetail, setShowQuotationDetail] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [showInvoiceDetail, setShowInvoiceDetail] = useState(false);
 
   // Handle payment success redirect
   useEffect(() => {
@@ -387,7 +390,14 @@ const ClientDashboard = () => {
                   
                   <div className="space-y-3">
                     {invoices.map((invoice) => (
-                      <div key={invoice.id} className="flex items-center justify-between p-3 rounded-xl bg-background/50 border border-border/30">
+                      <div 
+                        key={invoice.id} 
+                        className="flex items-center justify-between p-3 rounded-xl bg-background/50 border border-border/30 cursor-pointer hover:border-primary/30 transition-colors"
+                        onClick={() => {
+                          setSelectedInvoice(invoice);
+                          setShowInvoiceDetail(true);
+                        }}
+                      >
                         <div className="flex-1">
                           <h4 className="font-medium text-foreground text-sm">
                             {invoice.projects?.title || 'Untitled Project'}
@@ -404,23 +414,21 @@ const ClientDashboard = () => {
                             <div className="font-semibold text-foreground">
                               {formatCurrency((invoice as any).total || invoice.amount, invoice.currency)}
                             </div>
-                            <Badge variant={getStatusBadgeVariant(invoice.status)} className="text-xs">
+                            <Badge variant={getStatusBadgeVariant(invoice.status)} className="text-xs capitalize">
                               {invoice.status}
                             </Badge>
                           </div>
-                          {(invoice.status === 'pending' || invoice.status === 'overdue' || invoice.status === 'sent') ? (
-                            <PaymentButton
-                              invoiceId={invoice.id}
-                              clientId={invoice.client_id}
-                              amount={(invoice as any).total || invoice.amount}
-                              currency={invoice.currency}
-                              onPaymentSuccess={refreshData}
-                            />
-                          ) : invoice.status === 'paid' ? (
-                            <Badge variant="default" className="bg-green-500/20 text-green-600 border-green-500/30 text-xs">
-                              Paid
-                            </Badge>
-                          ) : null}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedInvoice(invoice);
+                              setShowInvoiceDetail(true);
+                            }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -488,6 +496,14 @@ const ClientDashboard = () => {
           onStatusUpdate={refreshData}
           clientName={user?.email?.split('@')[0] || 'Client'}
           clientEmail={user?.email || ''}
+        />
+
+        {/* Invoice Detail Dialog */}
+        <InvoiceDetailDialog
+          invoice={selectedInvoice}
+          open={showInvoiceDetail}
+          onOpenChange={setShowInvoiceDetail}
+          onPaymentSuccess={refreshData}
         />
       </div>
     </>
