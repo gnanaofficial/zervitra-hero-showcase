@@ -109,6 +109,7 @@ export const useDashboardData = () => {
         setAllProjects(allProjectsData || []);
       }
 
+      // Filter out draft quotations - clients should not see drafts
       const { data: quotationsData, error: quotationsError } = await supabase
         .from('quotations')
         .select(`
@@ -116,6 +117,7 @@ export const useDashboardData = () => {
           projects(title)
         `)
         .eq('client_id', clientId)
+        .neq('status', 'draft')
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -126,6 +128,7 @@ export const useDashboardData = () => {
           projects(title)
         `)
         .eq('client_id', clientId)
+        .neq('status', 'draft')
         .order('created_at', { ascending: false });
 
       if (quotationsError) {
