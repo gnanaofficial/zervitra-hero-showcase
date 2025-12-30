@@ -5,11 +5,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Download, CheckCircle, XCircle, ExternalLink } from "lucide-react";
+import { FileText, Download, CheckCircle, XCircle, ExternalLink, Calendar, Clock } from "lucide-react";
 import { formatCurrency } from "@/lib/payments";
 import { QuotationAcceptanceFlow } from "./QuotationAcceptanceFlow";
 
@@ -64,9 +65,20 @@ export const QuotationDetailDialog = ({
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'accepted': return 'default';
-      case 'sent': case 'pending': return 'outline';
+      case 'sent': return 'outline';
+      case 'pending': return 'outline';
       case 'rejected': return 'destructive';
       default: return 'secondary';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'accepted': return 'Accepted';
+      case 'sent': return 'Pending';
+      case 'pending': return 'Pending';
+      case 'rejected': return 'Rejected';
+      default: return status;
     }
   };
 
@@ -88,6 +100,8 @@ export const QuotationDetailDialog = ({
     }
   };
 
+  const isExpired = quotation.valid_until && new Date(quotation.valid_until) < new Date();
+
   return (
     <>
       <Dialog open={open && !showAcceptanceFlow} onOpenChange={onOpenChange}>
@@ -96,12 +110,34 @@ export const QuotationDetailDialog = ({
             <DialogTitle className="flex items-center justify-between">
               <span>Quotation Details</span>
               <Badge variant={getStatusBadgeVariant(quotation.status)} className="capitalize">
-                {quotation.status}
+                {getStatusLabel(quotation.status)}
               </Badge>
             </DialogTitle>
+            <DialogDescription>
+              Review the details of this quotation for {quotation.projects?.title || 'your project'}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
+            {/* Brief Description */}
+            <div className="bg-muted/30 rounded-lg p-4 border border-border/50">
+              <p className="text-sm text-muted-foreground">
+                This quotation outlines the proposed services and pricing for your project. 
+                {canAcceptReject && !isExpired && (
+                  <span className="text-foreground"> Review the details below and accept or reject to proceed.</span>
+                )}
+                {isExpired && (
+                  <span className="text-destructive"> This quotation has expired. Please contact us for a new quote.</span>
+                )}
+                {quotation.status === 'accepted' && (
+                  <span className="text-green-600"> You have accepted this quotation. An invoice will be sent shortly.</span>
+                )}
+                {quotation.status === 'rejected' && (
+                  <span className="text-destructive"> You have declined this quotation.</span>
+                )}
+              </p>
+            </div>
+
             {/* Header Info */}
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -114,19 +150,26 @@ export const QuotationDetailDialog = ({
                 <p className="text-sm text-muted-foreground">Project</p>
                 <p className="font-semibold">{quotation.projects?.title || 'N/A'}</p>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Date Created</p>
-                <p className="font-medium">
-                  {format(new Date(quotation.created_at), 'MMM dd, yyyy')}
-                </p>
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Date Created</p>
+                  <p className="font-medium">
+                    {format(new Date(quotation.created_at), 'MMM dd, yyyy')}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Valid Until</p>
-                <p className="font-medium">
-                  {quotation.valid_until
-                    ? format(new Date(quotation.valid_until), 'MMM dd, yyyy')
-                    : 'N/A'}
-                </p>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Valid Until</p>
+                  <p className={`font-medium ${isExpired ? 'text-destructive' : ''}`}>
+                    {quotation.valid_until
+                      ? format(new Date(quotation.valid_until), 'MMM dd, yyyy')
+                      : 'N/A'}
+                    {isExpired && ' (Expired)'}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -135,7 +178,7 @@ export const QuotationDetailDialog = ({
             {/* Services */}
             {quotation.services && quotation.services.length > 0 && (
               <div>
-                <h4 className="font-semibold mb-3">Services</h4>
+                <h4 className="font-semibold mb-3">Services Included</h4>
                 <div className="space-y-2">
                   {quotation.services.map((service, index) => (
                     <div
@@ -176,7 +219,7 @@ export const QuotationDetailDialog = ({
             {/* Notes */}
             {quotation.notes && (
               <div>
-                <h4 className="font-semibold mb-2">Notes</h4>
+                <h4 className="font-semibold mb-2">Additional Notes</h4>
                 <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
                   {quotation.notes}
                 </p>
@@ -184,7 +227,7 @@ export const QuotationDetailDialog = ({
             )}
 
             {/* Actions */}
-            <div className="flex flex-wrap gap-3 pt-4">
+            <div className="flex flex-wrap gap-3 pt-4 border-t">
               {quotation.pdf_url && (
                 <Button variant="outline" onClick={handleDownloadPdf}>
                   <Download className="w-4 h-4 mr-2" />
@@ -192,7 +235,7 @@ export const QuotationDetailDialog = ({
                 </Button>
               )}
 
-              {canAcceptReject && (
+              {canAcceptReject && !isExpired && (
                 <>
                   <Button
                     variant="default"
@@ -204,10 +247,7 @@ export const QuotationDetailDialog = ({
                   </Button>
                   <Button
                     variant="destructive"
-                    onClick={() => {
-                      // Handle rejection - could show a dialog for reason
-                      setShowAcceptanceFlow(true);
-                    }}
+                    onClick={() => setShowAcceptanceFlow(true)}
                   >
                     <XCircle className="w-4 h-4 mr-2" />
                     Reject
