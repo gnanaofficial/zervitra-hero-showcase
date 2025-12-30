@@ -114,7 +114,7 @@ export const QuotationAcceptanceFlow = ({
       if (updateError) throw updateError;
 
       // Send notification email to admin
-      const { error: emailError } = await supabase.functions.invoke('send-quotation-acceptance-email', {
+      const { error: adminEmailError } = await supabase.functions.invoke('send-quotation-acceptance-email', {
         body: {
           clientName,
           clientEmail,
@@ -129,14 +129,30 @@ export const QuotationAcceptanceFlow = ({
         }
       });
 
-      if (emailError) {
-        console.error("Email notification error:", emailError);
-        // Don't fail the whole process for email error
+      if (adminEmailError) {
+        console.error("Admin email notification error:", adminEmailError);
+      }
+
+      // Send confirmation email to client with next steps
+      const { error: clientEmailError } = await supabase.functions.invoke('send-client-quotation-notification', {
+        body: {
+          clientName,
+          clientEmail,
+          quotationId: quotation.quotation_id,
+          amount: quotation.amount.toLocaleString(),
+          currency: quotation.currency || 'USD',
+          projectTitle: quotation.projects?.title || 'Project',
+          action: 'accepted'
+        }
+      });
+
+      if (clientEmailError) {
+        console.error("Client email notification error:", clientEmailError);
       }
 
       toast({
         title: "Quotation Accepted",
-        description: "Thank you! Your acceptance has been recorded and the team has been notified."
+        description: "Thank you! Your acceptance has been recorded. Check your email for next steps."
       });
 
       onComplete();
@@ -177,6 +193,19 @@ export const QuotationAcceptanceFlow = ({
           acceptedAt: format(new Date(), 'PPpp'),
           action: 'rejected',
           rejectionReason
+        }
+      });
+
+      // Send confirmation email to client
+      await supabase.functions.invoke('send-client-quotation-notification', {
+        body: {
+          clientName,
+          clientEmail,
+          quotationId: quotation.quotation_id,
+          amount: quotation.amount.toLocaleString(),
+          currency: quotation.currency || 'USD',
+          projectTitle: quotation.projects?.title || 'Project',
+          action: 'rejected'
         }
       });
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { format } from "date-fns";
 import {
   Dialog,
@@ -10,10 +10,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Download, CheckCircle, XCircle, ExternalLink, Calendar, Clock } from "lucide-react";
+import { FileText, Download, CheckCircle, XCircle, ExternalLink, Calendar, Clock, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/payments";
 import { QuotationAcceptanceFlow } from "./QuotationAcceptanceFlow";
-
+import { useToast } from "@/hooks/use-toast";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 interface QuotationService {
   description: string;
   amount: number;
@@ -58,7 +60,10 @@ export const QuotationDetailDialog = ({
   clientName,
   clientEmail
 }: QuotationDetailDialogProps) => {
+  const { toast } = useToast();
   const [showAcceptanceFlow, setShowAcceptanceFlow] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const pdfContentRef = useRef<HTMLDivElement>(null);
 
   if (!quotation) return null;
 
@@ -94,10 +99,69 @@ export const QuotationDetailDialog = ({
     onOpenChange(false);
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     if (quotation.pdf_url) {
       window.open(quotation.pdf_url, '_blank');
+      return;
     }
+    
+    // Generate PDF on-the-fly
+    setIsGeneratingPdf(true);
+    try {
+      await generateAndDownloadPdf();
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "PDF Generation Failed",
+        description: "Unable to generate PDF. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const generateAndDownloadPdf = async () => {
+    if (!pdfContentRef.current) return;
+    
+    const canvas = await html2canvas(pdfContentRef.current, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pdfWidth - 20;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    let heightLeft = imgHeight;
+    let position = 10;
+    
+    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+    heightLeft -= pdfHeight;
+    
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight + 10;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+    }
+    
+    pdf.save(`Quotation-${quotation.quotation_id || quotation.id}.pdf`);
+    
+    toast({
+      title: "PDF Downloaded",
+      description: "Quotation PDF has been generated and downloaded."
+    });
   };
 
   const isExpired = quotation.valid_until && new Date(quotation.valid_until) < new Date();
@@ -228,12 +292,23 @@ export const QuotationDetailDialog = ({
 
             {/* Actions */}
             <div className="flex flex-wrap gap-3 pt-4 border-t">
-              {quotation.pdf_url && (
-                <Button variant="outline" onClick={handleDownloadPdf}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Download PDF
-                </Button>
-              )}
+              <Button 
+                variant="outline" 
+                onClick={handleDownloadPdf}
+                disabled={isGeneratingPdf}
+              >
+                {isGeneratingPdf ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </>
+                )}
+              </Button>
 
               {canAcceptReject && !isExpired && (
                 <>
@@ -255,6 +330,78 @@ export const QuotationDetailDialog = ({
                 </>
               )}
             </div>
+          </div>
+
+          {/* Hidden PDF Content for Generation */}
+          <div 
+            ref={pdfContentRef} 
+            className="fixed left-[-9999px] top-0 w-[800px] bg-white p-8"
+            style={{ fontFamily: 'Arial, sans-serif' }}
+          >
+            <div className="border-b-2 border-primary pb-4 mb-6">
+              <h1 className="text-2xl font-bold text-primary">QUOTATION</h1>
+              <p className="text-gray-600">#{quotation.quotation_id || quotation.id}</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-8 mb-6">
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-2">From:</h3>
+                <p className="text-gray-600">Zervitra</p>
+                <p className="text-gray-600">contact@zervitra.com</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-2">To:</h3>
+                <p className="text-gray-600">{clientName}</p>
+                <p className="text-gray-600">{clientEmail}</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+              <div><span className="text-gray-500">Project:</span> {quotation.projects?.title || 'N/A'}</div>
+              <div><span className="text-gray-500">Date:</span> {format(new Date(quotation.created_at), 'MMM dd, yyyy')}</div>
+              <div><span className="text-gray-500">Valid Until:</span> {quotation.valid_until ? format(new Date(quotation.valid_until), 'MMM dd, yyyy') : 'N/A'}</div>
+              <div><span className="text-gray-500">Status:</span> {getStatusLabel(quotation.status)}</div>
+            </div>
+            
+            {quotation.services && quotation.services.length > 0 && (
+              <div className="mb-6">
+                <h3 className="font-semibold text-gray-800 mb-3">Services:</h3>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b-2">
+                      <th className="text-left py-2">Description</th>
+                      <th className="text-right py-2">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {quotation.services.map((service, index) => (
+                      <tr key={index} className="border-b">
+                        <td className="py-2">{service.description}</td>
+                        <td className="text-right py-2">
+                          {service.isFree ? 'Free' : formatCurrency(service.amount, quotation.currency)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            
+            <div className="border-t-2 pt-4 text-right">
+              <p className="text-xl font-bold text-primary">
+                Total: {formatCurrency(quotation.amount, quotation.currency)}
+              </p>
+              {quotation.tax_percent && quotation.tax_percent > 0 && (
+                <p className="text-sm text-gray-500">Includes {quotation.tax_percent}% GST</p>
+              )}
+            </div>
+            
+            {quotation.notes && (
+              <div className="mt-6 p-4 bg-gray-100 rounded">
+                <h4 className="font-semibold text-gray-800 mb-2">Notes:</h4>
+                <p className="text-sm text-gray-600">{quotation.notes}</p>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
