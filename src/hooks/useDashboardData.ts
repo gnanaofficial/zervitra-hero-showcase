@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 
@@ -171,9 +171,10 @@ export const useDashboardData = () => {
     }
   };
 
-  const refreshData = () => {
+  const refreshData = useCallback(() => {
+    console.log('Refreshing dashboard data...');
     fetchDashboardData();
-  };
+  }, [user]);
 
   // Calculate overview metrics - include 'sent' as pending for clients
   const overview = {

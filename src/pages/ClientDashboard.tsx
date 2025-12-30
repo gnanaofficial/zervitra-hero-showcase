@@ -551,10 +551,13 @@ const ClientDashboard = () => {
           quotation={selectedQuotation}
           open={showQuotationDetail}
           onOpenChange={setShowQuotationDetail}
-          onStatusUpdate={() => {
-            refreshData();
-            setSelectedQuotation(null);
+          onStatusUpdate={async () => {
+            // Close dialogs first
             setShowQuotationDetail(false);
+            setSelectedQuotation(null);
+            // Refresh data after a small delay to ensure DB update is complete
+            await new Promise(resolve => setTimeout(resolve, 200));
+            refreshData();
           }}
           clientName={user?.email?.split('@')[0] || 'Client'}
           clientEmail={user?.email || ''}
