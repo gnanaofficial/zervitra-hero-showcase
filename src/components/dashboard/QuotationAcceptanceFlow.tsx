@@ -105,13 +105,18 @@ export const QuotationAcceptanceFlow = ({
 
     setIsSubmitting(true);
     try {
-      // Update quotation status
+      // Update quotation status with updated_at timestamp
       const { error: updateError } = await supabase
         .from('quotations')
-        .update({ status: 'accepted' })
+        .update({ 
+          status: 'accepted',
+          updated_at: new Date().toISOString()
+        })
         .eq('id', quotation.id);
 
       if (updateError) throw updateError;
+
+      console.log('Quotation accepted successfully:', quotation.id);
 
       // Send notification email to admin
       const { error: adminEmailError } = await supabase.functions.invoke('send-quotation-acceptance-email', {
@@ -155,7 +160,10 @@ export const QuotationAcceptanceFlow = ({
         description: "Thank you! Your acceptance has been recorded. Check your email for next steps."
       });
 
-      onComplete();
+      // Call onComplete after a small delay to ensure state updates propagate
+      setTimeout(() => {
+        onComplete();
+      }, 100);
     } catch (error: any) {
       console.error("Error accepting quotation:", error);
       toast({
@@ -171,13 +179,18 @@ export const QuotationAcceptanceFlow = ({
   const handleRejectionSubmit = async () => {
     setIsSubmitting(true);
     try {
-      // Update quotation status
+      // Update quotation status with updated_at timestamp
       const { error: updateError } = await supabase
         .from('quotations')
-        .update({ status: 'rejected' })
+        .update({ 
+          status: 'rejected',
+          updated_at: new Date().toISOString()
+        })
         .eq('id', quotation.id);
 
       if (updateError) throw updateError;
+
+      console.log('Quotation rejected successfully:', quotation.id);
 
       // Send notification email to admin
       await supabase.functions.invoke('send-quotation-acceptance-email', {
@@ -214,7 +227,10 @@ export const QuotationAcceptanceFlow = ({
         description: "Your response has been recorded. The team has been notified."
       });
 
-      onComplete();
+      // Call onComplete after a small delay to ensure state updates propagate
+      setTimeout(() => {
+        onComplete();
+      }, 100);
     } catch (error: any) {
       console.error("Error rejecting quotation:", error);
       toast({
