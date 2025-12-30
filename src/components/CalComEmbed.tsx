@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Calendar, Clock, Video, X } from "lucide-react";
 import { useState, useEffect } from "react";
 
-const CAL_LINK = "zervitra/30min";
+const CAL_BASE_URL = "https://app.cal.eu";
+const CAL_LINK = "zervitra";
 
 const CalComEmbed = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,7 +36,7 @@ const CalComEmbed = () => {
       });
     } else {
       // Fallback to opening in new tab
-      window.open(`https://cal.com/${CAL_LINK}`, "_blank");
+      window.open(`${CAL_BASE_URL}/${CAL_LINK}`, "_blank");
     }
   };
 
@@ -134,7 +135,7 @@ const CalComEmbed = () => {
               style={{ minHeight: "600px" }}
             >
               <iframe
-                src={`https://cal.com/${CAL_LINK}?embed=true&theme=dark&brandColor=%237c3aed`}
+                src={`${CAL_BASE_URL}/${CAL_LINK}?embed=true&theme=dark&brandColor=%237c3aed`}
                 width="100%"
                 height="600"
                 frameBorder="0"
