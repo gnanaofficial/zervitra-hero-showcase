@@ -87,11 +87,28 @@ export const ExpandedInvoicesTable = memo(({
       case "paid":
         return "default";
       case "pending":
+      case "sent":
         return "outline";
       case "overdue":
         return "destructive";
       default:
         return "outline";
+    }
+  };
+
+  // Client-friendly status labels
+  const getClientStatusLabel = (status: string) => {
+    switch (status) {
+      case 'sent':
+        return 'Pending';
+      case 'paid':
+        return 'Paid';
+      case 'pending':
+        return 'Pending';
+      case 'overdue':
+        return 'Overdue';
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1);
     }
   };
 
@@ -110,8 +127,11 @@ export const ExpandedInvoicesTable = memo(({
         const matchesSearch =
           invoice.projects?.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
           invoice.id.toLowerCase().includes(debouncedSearch.toLowerCase());
+        // Map "pending" filter to include both "pending" and "sent" statuses
         const matchesStatus =
-          statusFilter === "all" || invoice.status === statusFilter;
+          statusFilter === "all" || 
+          invoice.status === statusFilter ||
+          (statusFilter === "pending" && invoice.status === "sent");
         return matchesSearch && matchesStatus;
       })
       .sort((a, b) => {
@@ -154,7 +174,6 @@ export const ExpandedInvoicesTable = memo(({
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="sent">Sent</SelectItem>
               <SelectItem value="paid">Paid</SelectItem>
               <SelectItem value="overdue">Overdue</SelectItem>
             </SelectContent>
@@ -273,7 +292,7 @@ export const ExpandedInvoicesTable = memo(({
                       </TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(invoice.status)}>
-                          {invoice.status}
+                          {getClientStatusLabel(invoice.status)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">

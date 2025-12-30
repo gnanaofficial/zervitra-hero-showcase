@@ -83,6 +83,7 @@ const ClientDashboard = () => {
       case 'completed':
         return 'secondary';
       case 'pending':
+      case 'sent':
         return 'outline';
       case 'on_hold':
       case 'overdue':
@@ -99,11 +100,33 @@ const ClientDashboard = () => {
     switch (status) {
       case 'completed':
       case 'paid':
+      case 'accepted':
         return <CheckCircle className="w-3 h-3" />;
       case 'pending':
+      case 'sent':
         return <Clock className="w-3 h-3" />;
       default:
         return null;
+    }
+  };
+
+  // Client-friendly status labels
+  const getClientStatusLabel = (status: string) => {
+    switch (status) {
+      case 'sent':
+        return 'Pending';
+      case 'accepted':
+        return 'Accepted';
+      case 'rejected':
+        return 'Rejected';
+      case 'paid':
+        return 'Paid';
+      case 'pending':
+        return 'Pending';
+      case 'overdue':
+        return 'Overdue';
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1);
     }
   };
 
@@ -372,7 +395,7 @@ const ClientDashboard = () => {
                               {formatCurrency(quote.amount, quote.currency)}
                             </div>
                             <Badge variant={getStatusBadgeVariant(quote.status)} className="text-xs capitalize">
-                              {quote.status}
+                              {getClientStatusLabel(quote.status)}
                             </Badge>
                           </div>
                           <Button
@@ -442,7 +465,7 @@ const ClientDashboard = () => {
                               {formatCurrency((invoice as any).total || invoice.amount, invoice.currency)}
                             </div>
                             <Badge variant={getStatusBadgeVariant(invoice.status)} className="text-xs capitalize">
-                              {invoice.status}
+                              {getClientStatusLabel(invoice.status)}
                             </Badge>
                           </div>
                           <Button
@@ -528,7 +551,11 @@ const ClientDashboard = () => {
           quotation={selectedQuotation}
           open={showQuotationDetail}
           onOpenChange={setShowQuotationDetail}
-          onStatusUpdate={refreshData}
+          onStatusUpdate={() => {
+            refreshData();
+            setSelectedQuotation(null);
+            setShowQuotationDetail(false);
+          }}
           clientName={user?.email?.split('@')[0] || 'Client'}
           clientEmail={user?.email || ''}
         />

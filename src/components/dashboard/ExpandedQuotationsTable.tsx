@@ -83,11 +83,28 @@ export const ExpandedQuotationsTable = memo(({
       case "accepted":
         return "default";
       case "pending":
+      case "sent":
         return "outline";
       case "rejected":
         return "secondary";
       default:
         return "outline";
+    }
+  };
+
+  // Client-friendly status labels
+  const getClientStatusLabel = (status: string) => {
+    switch (status) {
+      case 'sent':
+        return 'Pending';
+      case 'accepted':
+        return 'Accepted';
+      case 'rejected':
+        return 'Rejected';
+      case 'pending':
+        return 'Pending';
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1);
     }
   };
 
@@ -106,8 +123,11 @@ export const ExpandedQuotationsTable = memo(({
         const matchesSearch =
           quotation.projects?.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
           quotation.id.toLowerCase().includes(debouncedSearch.toLowerCase());
+        // Map "pending" filter to include both "pending" and "sent" statuses
         const matchesStatus =
-          statusFilter === "all" || quotation.status === statusFilter;
+          statusFilter === "all" || 
+          quotation.status === statusFilter ||
+          (statusFilter === "pending" && quotation.status === "sent");
         return matchesSearch && matchesStatus;
       })
       .sort((a, b) => {
@@ -265,7 +285,7 @@ export const ExpandedQuotationsTable = memo(({
                       </TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(quotation.status)}>
-                          {quotation.status}
+                          {getClientStatusLabel(quotation.status)}
                         </Badge>
                       </TableCell>
                       <TableCell>
