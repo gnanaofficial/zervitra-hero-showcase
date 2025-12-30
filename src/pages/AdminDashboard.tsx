@@ -27,7 +27,8 @@ import { ExpandedProjectsTable } from "@/components/dashboard/ExpandedProjectsTa
 import { ExpandedQuotationsTable } from "@/components/dashboard/ExpandedQuotationsTable";
 import { ExpandedInvoicesTable } from "@/components/dashboard/ExpandedInvoicesTable";
 import { CreateClientDialog } from "@/components/dashboard/CreateClientDialog";
-import { CreateAdminDialog } from "@/components/dashboard/CreateAdminDialog";
+import CreateManagerDialog from "@/components/dashboard/CreateManagerDialog";
+import ManagersSection from "@/components/dashboard/ManagersSection";
 import { DraftQuotationsSection } from "@/components/dashboard/DraftQuotationsSection";
 import { QuotationResponsesSection } from "@/components/dashboard/QuotationResponsesSection";
 import {
@@ -160,7 +161,7 @@ const AdminDashboard = () => {
                     Create Quotation
                   </Button>
                   <CreateClientDialog onSuccess={refreshData} />
-                  <CreateAdminDialog onSuccess={refreshData} />
+                  <CreateManagerDialog onSuccess={refreshData} />
                 </div>
               </div>
               <p className="text-xl text-muted-foreground mb-8">
@@ -449,6 +450,13 @@ const AdminDashboard = () => {
                 </motion.div>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Managers Section */}
+        <section className="py-8 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <ManagersSection onRefresh={refreshData} />
           </div>
         </section>
 

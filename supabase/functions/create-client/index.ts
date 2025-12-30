@@ -17,6 +17,7 @@ interface CreateClientRequest {
   country?: string;
   projectCode?: string;
   platformCode?: string;
+  managerId?: string;
 }
 
 Deno.serve(async (req) => {
@@ -41,17 +42,20 @@ Deno.serve(async (req) => {
       }
     )
 
-    // Check if calling user is an admin
+    // Check if calling user is an admin or manager
     const { data: { user: callingUser }, error: userError } = await supabaseClient.auth.getUser()
     if (userError || !callingUser) {
       throw new Error('Unauthorized: Could not verify user')
     }
 
-    const { data: isAdminData, error: adminCheckError } = await supabaseClient
+    const { data: isAdminData } = await supabaseClient
       .rpc('is_admin', { _user_id: callingUser.id })
 
-    if (adminCheckError || !isAdminData) {
-      throw new Error('Unauthorized: Only admins can create clients')
+    const { data: isManagerData } = await supabaseClient
+      .rpc('is_manager', { _user_id: callingUser.id })
+
+    if (!isAdminData && !isManagerData) {
+      throw new Error('Unauthorized: Only admins or managers can create clients')
     }
 
     // Get request body
@@ -67,11 +71,27 @@ Deno.serve(async (req) => {
       zip, 
       country,
       projectCode = 'E',
-      platformCode = 'W'
+      platformCode = 'W',
+      managerId
     } = body
 
     if (!email || !password || !companyName) {
       throw new Error('Email, password, and company name are required')
+    }
+
+    // If manager is calling, get their manager_id
+    let finalManagerId = managerId || null
+    if (isManagerData && !isAdminData) {
+      // Manager creating client - must be assigned to themselves
+      const { data: managerData } = await supabaseClient
+        .from('managers')
+        .select('id')
+        .eq('user_id', callingUser.id)
+        .single()
+      
+      if (managerData) {
+        finalManagerId = managerData.id
+      }
     }
 
     // Create admin client with service role
@@ -161,6 +181,7 @@ Deno.serve(async (req) => {
         platform_code: platformCode,
         year_hex: yearHex,
         client_sequence_number: clientSequence,
+        manager_id: finalManagerId,
       } as any)
       .select()
       .single()
@@ -178,7 +199,8 @@ Deno.serve(async (req) => {
         client_id: clientData.id,
         title: `${companyName} - Main Project`,
         description: 'Initial project created with client',
-        status: 'active'
+        status: 'active',
+        manager_id: finalManagerId,
       })
 
     if (projectError) {
