@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { Loader2, Plus, Building2, Mail, Phone, MapPin, Globe, Eye, EyeOff, Key, Copy, CheckCircle } from "lucide-react";
+import { Loader2, Plus, Building2, Mail, Phone, MapPin, Globe, Eye, EyeOff, Key, Copy, CheckCircle, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -19,7 +19,21 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { generatePassword, validatePasswordStrength } from "@/utils/password-generator";
+
+interface Manager {
+    id: string;
+    name: string;
+    email: string;
+    department: string | null;
+}
 
 interface CreateClientFormData {
     company_name: string;
@@ -31,6 +45,7 @@ interface CreateClientFormData {
     zip: string;
     country: string;
     password: string;
+    manager_id: string;
 }
 
 interface CreateClientDialogProps {
@@ -45,11 +60,36 @@ export function CreateClientDialog({ onSuccess }: CreateClientDialogProps) {
     const [generatedPassword, setGeneratedPassword] = useState("");
     const [passwordCopied, setPasswordCopied] = useState(false);
     const [createdClientEmail, setCreatedClientEmail] = useState("");
-    const { user } = useAuth();
+    const [managers, setManagers] = useState<Manager[]>([]);
+    const [selectedManagerId, setSelectedManagerId] = useState<string>("");
+    const { user, role } = useAuth();
     const { toast } = useToast();
     const { register, handleSubmit, reset, formState: { errors }, setValue, watch } = useForm<CreateClientFormData>();
 
     const password = watch("password");
+
+    // Fetch managers when dialog opens
+    useEffect(() => {
+        if (open && role === 'admin') {
+            fetchManagers();
+        }
+    }, [open, role]);
+
+    const fetchManagers = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('managers')
+                .select('id, name, email, department')
+                .eq('status', 'active')
+                .order('name');
+            
+            if (!error && data) {
+                setManagers(data);
+            }
+        } catch (error) {
+            console.error('Error fetching managers:', error);
+        }
+    };
 
     const handleAutoGenerateToggle = (checked: boolean) => {
         setAutoGeneratePassword(checked);
@@ -62,6 +102,7 @@ export function CreateClientDialog({ onSuccess }: CreateClientDialogProps) {
             setGeneratedPassword("");
         }
     };
+
 
     const handleCopyPassword = () => {
         if (generatedPassword) {
@@ -105,6 +146,7 @@ export function CreateClientDialog({ onSuccess }: CreateClientDialogProps) {
                     country: data.country || 'IND',
                     projectCode: 'E',
                     platformCode: 'W',
+                    managerId: selectedManagerId || null,
                 },
             });
 
@@ -159,6 +201,7 @@ export function CreateClientDialog({ onSuccess }: CreateClientDialogProps) {
             setCreatedClientEmail("");
             setPasswordCopied(false);
             setAutoGeneratePassword(true);
+            setSelectedManagerId("");
         }
     };
 
@@ -262,6 +305,35 @@ export function CreateClientDialog({ onSuccess }: CreateClientDialogProps) {
                                 {...register("phone")}
                             />
                         </div>
+
+                        {/* Manager Assignment */}
+                        {managers.length > 0 && (
+                            <div className="space-y-2 md:col-span-2 border-t pt-4">
+                                <Label className="flex items-center gap-2">
+                                    <Users className="w-4 h-4 text-muted-foreground" />
+                                    Assign to Manager
+                                </Label>
+                                <Select
+                                    value={selectedManagerId}
+                                    onValueChange={setSelectedManagerId}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a manager (optional)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="">No manager assigned</SelectItem>
+                                        {managers.map((manager) => (
+                                            <SelectItem key={manager.id} value={manager.id}>
+                                                {manager.name} {manager.department && `(${manager.department})`}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                    Assign this client to a manager for tracking and accountability.
+                                </p>
+                            </div>
+                        )}
 
                         {/* Password Section */}
                         <div className="space-y-3 md:col-span-2 border-t pt-4">
