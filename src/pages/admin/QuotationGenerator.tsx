@@ -416,8 +416,14 @@ const QuotationGenerator = () => {
             .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
           
           if (!sbError) {
-            const { data: urlData } = supabase.storage.from('quotations').getPublicUrl(fileName);
-            pdfUrl = urlData.publicUrl;
+            // Use signed URL with 1 year expiry for private bucket
+            const { data: signedData, error: signedError } = await supabase.storage
+              .from('quotations')
+              .createSignedUrl(fileName, 31536000); // 1 year in seconds
+            
+            if (!signedError && signedData) {
+              pdfUrl = signedData.signedUrl;
+            }
           }
         } else if (uploadData?.url) {
           pdfUrl = uploadData.url;
@@ -575,8 +581,14 @@ const QuotationGenerator = () => {
             .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
           
           if (!sbError) {
-            const { data: urlData } = supabase.storage.from('quotations').getPublicUrl(fileName);
-            pdfUrl = urlData.publicUrl;
+            // Use signed URL with 1 year expiry for private bucket
+            const { data: signedData, error: signedError } = await supabase.storage
+              .from('quotations')
+              .createSignedUrl(fileName, 31536000); // 1 year in seconds
+            
+            if (!signedError && signedData) {
+              pdfUrl = signedData.signedUrl;
+            }
           }
         } else if (uploadData?.url) {
           pdfUrl = uploadData.url;
