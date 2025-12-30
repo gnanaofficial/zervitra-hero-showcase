@@ -175,15 +175,15 @@ export const useDashboardData = () => {
     fetchDashboardData();
   };
 
-  // Calculate overview metrics
+  // Calculate overview metrics - include 'sent' as pending for clients
   const overview = {
     activeProjects: projects.filter(p => p.status === 'active').length,
     completedProjects: projects.filter(p => p.status === 'completed').length,
     totalProjects: projects.length,
-    pendingQuotations: quotations.filter(q => q.status === 'pending').length,
+    pendingQuotations: quotations.filter(q => q.status === 'pending' || q.status === 'sent').length,
     acceptedQuotations: quotations.filter(q => q.status === 'accepted').length,
     totalQuotations: quotations.length,
-    pendingInvoices: invoices.filter(i => i.status === 'pending').length,
+    pendingInvoices: invoices.filter(i => i.status === 'pending' || i.status === 'sent').length,
     paidInvoices: invoices.filter(i => i.status === 'paid').length,
     totalInvoices: invoices.length,
     totalPaid: invoices
