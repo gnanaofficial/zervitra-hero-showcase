@@ -41,6 +41,7 @@ interface ExpandedQuotationsTableProps {
   quotations: Quotation[];
   onExportCSV: () => void;
   onExportPDF: () => void;
+  onRowClick?: (quotation: Quotation) => void;
   loading?: boolean;
 }
 
@@ -48,6 +49,7 @@ export const ExpandedQuotationsTable = memo(({
   quotations,
   onExportCSV,
   onExportPDF,
+  onRowClick,
   loading = false,
 }: ExpandedQuotationsTableProps) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -248,6 +250,7 @@ export const ExpandedQuotationsTable = memo(({
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ duration: 0.3, delay: index * 0.05 }}
                       className="border-b hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => onRowClick?.(quotation)}
                     >
                       <TableCell className="font-medium">
                         <div>

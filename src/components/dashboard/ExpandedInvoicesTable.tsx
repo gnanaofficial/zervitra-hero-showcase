@@ -44,6 +44,7 @@ interface ExpandedInvoicesTableProps {
   onExportCSV: () => void;
   onExportPDF: () => void;
   onPaymentSuccess: () => void;
+  onRowClick?: (invoice: Invoice) => void;
   loading?: boolean;
 }
 
@@ -52,6 +53,7 @@ export const ExpandedInvoicesTable = memo(({
   onExportCSV,
   onExportPDF,
   onPaymentSuccess,
+  onRowClick,
   loading = false,
 }: ExpandedInvoicesTableProps) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -253,6 +255,7 @@ export const ExpandedInvoicesTable = memo(({
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ duration: 0.3, delay: index * 0.05 }}
                       className="border-b hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => onRowClick?.(invoice)}
                     >
                       <TableCell className="font-medium">
                         <div>

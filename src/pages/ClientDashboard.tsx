@@ -496,6 +496,10 @@ const ClientDashboard = () => {
               quotations={allQuotations}
               onExportCSV={() => exportQuotationsToCSV(allQuotations)}
               onExportPDF={() => exportQuotationsToPDF(allQuotations)}
+              onRowClick={(quotation) => {
+                setSelectedQuotation(quotation);
+                setShowQuotationDetail(true);
+              }}
             />
           )}
           {expandedView === "invoices" && (
@@ -504,6 +508,10 @@ const ClientDashboard = () => {
               onExportCSV={() => exportInvoicesToCSV(allInvoices)}
               onExportPDF={() => exportInvoicesToPDF(allInvoices)}
               onPaymentSuccess={refreshData}
+              onRowClick={(invoice) => {
+                setSelectedInvoice(invoice);
+                setShowInvoiceDetail(true);
+              }}
             />
           )}
         </ExpandedViewContainer>
