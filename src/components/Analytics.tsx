@@ -15,11 +15,6 @@ const activeUsersData = [
 ];
 
 
-const serviceData = [
-  { name: "Sep", value: 20 },
-  { name: "Oct", value: 35 },
-  { name: "Nov", value: 45 },
-];
 
 const Analytics = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -219,44 +214,6 @@ const Analytics = () => {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Service Demand Forecast Card */}
-          <div className={`bg-success rounded-3xl p-8 hover-lift transition-all duration-700 ${
-            isVisible ? 'animate-bounce-in' : ''
-          }`} style={{ animationDelay: '0.9s' }}>
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-white mb-2">Service</h3>
-              <p className="text-white/80 text-sm mb-4">demand forecast</p>
-              
-              <div className="mb-4">
-                <span className="text-white text-lg font-semibold">UI/UX</span>
-                <br />
-                <span className="text-white/90 font-semibold">+12%</span>
-              </div>
-            </div>
-            
-            <div className="h-20">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={serviceData}>
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.7)' }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="rgba(255,255,255,0.8)" 
-                    strokeWidth={2}
-                    dot={{ fill: 'white', strokeWidth: 2, r: 3 }}
-                    animationDuration={1800}
-                    animationBegin={1200}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
             </div>
           </div>
 

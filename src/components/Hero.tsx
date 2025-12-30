@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Calendar } from "lucide-react";
+import { Calendar, Phone } from "lucide-react";
 
 function FloatingPaths({ position }: { position: number }) {
   const paths = Array.from({ length: 36 }, (_, i) => ({
@@ -81,9 +81,10 @@ const Hero = () => {
           <Button
             size="lg"
             className="rounded-full bg-gradient-to-r from-primary to-hero-to hover:from-hero-from hover:to-primary text-white px-10 py-7 text-xl font-semibold shadow-[var(--shadow-button)] hover:shadow-[var(--shadow-glow)] transition-all duration-300 transform hover:scale-105"
-            onClick={() => window.open("mailto:hello@zervitra.com?subject=Project Inquiry", "_blank")}
+            onClick={() => window.open("tel:+918608608665", "_self")}
           >
-            Start Your Project
+            <Phone className="w-5 h-5 mr-2" />
+            Call Us: +91 86086 08665
           </Button>
           <Button
             size="lg"
