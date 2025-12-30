@@ -9,6 +9,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import ClientRoute from "@/components/ClientRoute";
+import ManagerRoute from "@/components/ManagerRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
@@ -19,7 +20,9 @@ const Contact = lazy(() => import("./pages/Contact"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Login = lazy(() => import("./pages/Login"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
+const ManagerLogin = lazy(() => import("./pages/ManagerLogin"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const ManagerDashboard = lazy(() => import("./pages/ManagerDashboard"));
 const QuotationGenerator = lazy(() => import("./pages/admin/QuotationGenerator"));
 const InvoiceGenerator = lazy(() => import("./pages/admin/InvoiceGenerator"));
 const ClientDashboard = lazy(() => import("./pages/ClientDashboard"));
@@ -63,6 +66,8 @@ const App = () => (
                   <Route path="/user-login" element={<Login />} />
                   {/* Secure admin access URL - not linked anywhere publicly */}
                   <Route path="/zervi-admin" element={<AdminLogin />} />
+                  {/* Secure manager access URL - not linked anywhere publicly */}
+                  <Route path="/manager-zevii" element={<ManagerLogin />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
 
@@ -109,6 +114,32 @@ const App = () => (
                       <ClientRoute>
                         <ClientDashboard />
                       </ClientRoute>
+                    }
+                  />
+
+                  {/* Manager routes */}
+                  <Route
+                    path="/manager/dashboard"
+                    element={
+                      <ManagerRoute>
+                        <ManagerDashboard />
+                      </ManagerRoute>
+                    }
+                  />
+                  <Route
+                    path="/manager/quotation-generator"
+                    element={
+                      <ManagerRoute>
+                        <QuotationGenerator />
+                      </ManagerRoute>
+                    }
+                  />
+                  <Route
+                    path="/manager/invoice-generator"
+                    element={
+                      <ManagerRoute>
+                        <InvoiceGenerator />
+                      </ManagerRoute>
                     }
                   />
 
