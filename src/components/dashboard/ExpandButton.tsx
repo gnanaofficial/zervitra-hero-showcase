@@ -8,7 +8,7 @@ import {
 import { Maximize2 } from "lucide-react";
 
 interface ExpandButtonProps {
-  onClick: () => void;
+  onClick: (e?: React.MouseEvent) => void;
   label?: string;
   iconOnly?: boolean;
   expanded?: boolean;
