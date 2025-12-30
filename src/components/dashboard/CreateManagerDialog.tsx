@@ -56,43 +56,43 @@ const CreateManagerDialog = ({ onSuccess }: CreateManagerDialogProps) => {
 
     setLoading(true);
     try {
-      // 1. Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/manager-zevii`
+      // Get the current session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+
+      // Call the edge function to create manager
+      const response = await fetch(
+        'https://auhupuupxwxoxmcjxaxk.supabase.co/functions/v1/create-manager',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            email: formData.email,
+            password: formData.password,
+            phone: formData.phone || undefined,
+            department: formData.department || undefined,
+            region: formData.region || undefined,
+            hireDate: formData.hireDate || undefined,
+            commissionPercent: parseFloat(formData.commissionPercent) || 0,
+            targetRevenue: formData.targetRevenue ? parseFloat(formData.targetRevenue) : undefined,
+            targetClients: formData.targetClients ? parseInt(formData.targetClients) : undefined,
+          }),
         }
-      });
+      );
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Failed to create user');
+      const result = await response.json();
 
-      // 2. Create manager record
-      const { error: managerError } = await supabase.from('managers').insert({
-        user_id: authData.user.id,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone || null,
-        department: formData.department || null,
-        region: formData.region || null,
-        hire_date: formData.hireDate || null,
-        commission_percent: parseFloat(formData.commissionPercent) || 0,
-        target_revenue: formData.targetRevenue ? parseFloat(formData.targetRevenue) : null,
-        target_clients: formData.targetClients ? parseInt(formData.targetClients) : null,
-        created_by: user.id
-      });
-
-      if (managerError) throw managerError;
-
-      // 3. Create user role
-      const { error: roleError } = await supabase.from('user_roles').insert({
-        user_id: authData.user.id,
-        role: 'manager',
-        created_by: user.id
-      });
-
-      if (roleError) throw roleError;
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create manager');
+      }
 
       toast({
         title: 'Manager created',
