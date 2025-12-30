@@ -193,7 +193,8 @@ const ClientDashboard = () => {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
-                className="premium-glass rounded-3xl p-6 border border-white/10"
+                className="premium-glass rounded-3xl p-6 border border-white/10 cursor-pointer hover:border-primary/30 transition-colors"
+                onClick={() => setExpandedView("projects")}
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10
@@ -201,7 +202,10 @@ const ClientDashboard = () => {
                     <FolderOpen className="w-6 h-6 text-primary" />
                   </div>
                   <ExpandButton
-                    onClick={() => setExpandedView("projects")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedView("projects");
+                    }}
                     iconOnly
                     expanded={expandedView === "projects"}
                   />
@@ -218,7 +222,8 @@ const ClientDashboard = () => {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
-                className="premium-glass rounded-3xl p-6 border border-white/10"
+                className="premium-glass rounded-3xl p-6 border border-white/10 cursor-pointer hover:border-primary/30 transition-colors"
+                onClick={() => setExpandedView("quotations")}
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10
@@ -226,7 +231,10 @@ const ClientDashboard = () => {
                     <FileText className="w-6 h-6 text-primary" />
                   </div>
                   <ExpandButton
-                    onClick={() => setExpandedView("quotations")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedView("quotations");
+                    }}
                     iconOnly
                     expanded={expandedView === "quotations"}
                   />
@@ -243,7 +251,8 @@ const ClientDashboard = () => {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
-                className="premium-glass rounded-3xl p-6 border border-white/10"
+                className="premium-glass rounded-3xl p-6 border border-white/10 cursor-pointer hover:border-primary/30 transition-colors"
+                onClick={() => setExpandedView("invoices")}
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10
@@ -251,7 +260,10 @@ const ClientDashboard = () => {
                     <CreditCard className="w-6 h-6 text-primary" />
                   </div>
                   <ExpandButton
-                    onClick={() => setExpandedView("invoices")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedView("invoices");
+                    }}
                     iconOnly
                     expanded={expandedView === "invoices"}
                   />
@@ -280,10 +292,15 @@ const ClientDashboard = () => {
               >
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-semibold text-foreground">Recent Projects</h3>
+                  {projects.length > 3 && (
+                    <Button variant="ghost" size="sm" onClick={() => setExpandedView("projects")}>
+                      View All
+                    </Button>
+                  )}
                 </div>
                 
                 <div className="space-y-4">
-                  {projects.map((project) => (
+                  {projects.slice(0, 3).map((project) => (
                     <div key={project.id} className="flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border/30">
                       <div className="flex-1">
                         <h4 className="font-medium text-foreground">{project.title}</h4>
@@ -321,10 +338,15 @@ const ClientDashboard = () => {
                 >
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-semibold text-foreground">Recent Quotations</h3>
+                    {quotations.length > 3 && (
+                      <Button variant="ghost" size="sm" onClick={() => setExpandedView("quotations")}>
+                        View All
+                      </Button>
+                    )}
                   </div>
                   
                   <div className="space-y-3">
-                    {quotations.map((quote) => (
+                    {quotations.slice(0, 3).map((quote) => (
                       <div 
                         key={quote.id} 
                         className="flex items-center justify-between p-3 rounded-xl bg-background/50 border border-border/30 cursor-pointer hover:border-primary/30 transition-colors"
@@ -386,10 +408,15 @@ const ClientDashboard = () => {
                 >
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-semibold text-foreground">Recent Invoices</h3>
+                    {invoices.length > 3 && (
+                      <Button variant="ghost" size="sm" onClick={() => setExpandedView("invoices")}>
+                        View All
+                      </Button>
+                    )}
                   </div>
                   
                   <div className="space-y-3">
-                    {invoices.map((invoice) => (
+                    {invoices.slice(0, 3).map((invoice) => (
                       <div 
                         key={invoice.id} 
                         className="flex items-center justify-between p-3 rounded-xl bg-background/50 border border-border/30 cursor-pointer hover:border-primary/30 transition-colors"
