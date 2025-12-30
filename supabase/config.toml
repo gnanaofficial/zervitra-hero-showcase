@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.send-quotation-acceptance-email]
 verify_jwt = false
+
+[functions.send-client-quotation-notification]
+verify_jwt = false
+
+[functions.test-r2-upload]
+verify_jwt = false
