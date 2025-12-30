@@ -36,6 +36,7 @@ const Dashboard = () => {
   } = useDashboardData();
   const [expandedView, setExpandedView] = useState<ExpandedView>(null);
   const isAdmin = role === 'admin';
+  const isManager = role === 'manager';
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'active':

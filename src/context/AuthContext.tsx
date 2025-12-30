@@ -3,12 +3,15 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+type UserRole = 'admin' | 'manager' | 'user' | null;
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  role: 'admin' | 'user' | null;
-  signIn: (email: string, password: string, expectedRole?: 'admin' | 'user') => Promise<{ error: any; redirectTo: string | null }>;
+  role: UserRole;
+  managerId: string | null;
+  signIn: (email: string, password: string, expectedRole?: 'admin' | 'manager' | 'user') => Promise<{ error: any; redirectTo: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -18,7 +21,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<'admin' | 'user' | null>(null);
+  const [role, setRole] = useState<UserRole>(null);
+  const [managerId, setManagerId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -31,7 +35,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .single();
         
         if (!error && data) {
-          setRole(data.role as 'admin' | 'user');
+          setRole(data.role as UserRole);
+          
+          // If manager, fetch manager_id
+          if (data.role === 'manager') {
+            const { data: managerData } = await supabase
+              .from('managers')
+              .select('id')
+              .eq('user_id', userId)
+              .single();
+            
+            if (managerData) {
+              setManagerId(managerData.id);
+            }
+          }
         }
       } catch (error) {
         console.error('Error fetching user role:', error);
@@ -48,12 +65,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           fetchUserRole(session.user.id);
         } else {
           setRole(null);
+          setManagerId(null);
         }
         
         setLoading(false);
         
         if (event === 'SIGNED_OUT') {
           setRole(null);
+          setManagerId(null);
           toast({
             title: "Signed out successfully",
             description: "You have been logged out."
@@ -77,7 +96,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, [toast]);
 
-  const signIn = async (email: string, password: string, expectedRole?: 'admin' | 'user') => {
+  const signIn = async (email: string, password: string, expectedRole?: 'admin' | 'manager' | 'user') => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
@@ -133,8 +152,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       // Set role and determine redirect path
-      setRole(roleData.role as 'admin' | 'user');
-      const redirectTo = roleData.role === 'admin' ? '/admin/dashboard' : '/client/dashboard';
+      setRole(roleData.role as UserRole);
+      
+      let redirectTo = '/dashboard';
+      if (roleData.role === 'admin') {
+        redirectTo = '/admin/dashboard';
+      } else if (roleData.role === 'manager') {
+        // Fetch manager_id
+        const { data: managerData } = await supabase
+          .from('managers')
+          .select('id')
+          .eq('user_id', data.user.id)
+          .single();
+        
+        if (managerData) {
+          setManagerId(managerData.id);
+        }
+        redirectTo = '/manager/dashboard';
+      } else {
+        redirectTo = '/client/dashboard';
+      }
 
       toast({
         title: "Welcome back!",
@@ -161,6 +198,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     session,
     loading,
     role,
+    managerId,
     signIn,
     signOut
   };

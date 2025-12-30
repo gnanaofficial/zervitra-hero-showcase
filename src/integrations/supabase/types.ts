@@ -63,6 +63,7 @@ export type Database = {
           country: string | null
           created_at: string
           id: string
+          manager_id: string | null
           phone: string | null
           platform_code: string | null
           project_code: string | null
@@ -82,6 +83,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           id?: string
+          manager_id?: string | null
           phone?: string | null
           platform_code?: string | null
           project_code?: string | null
@@ -101,6 +103,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           id?: string
+          manager_id?: string | null
           phone?: string | null
           platform_code?: string | null
           project_code?: string | null
@@ -110,7 +113,15 @@ export type Database = {
           year_hex?: string | null
           zip?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clients_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       global_counters: {
         Row: {
@@ -172,6 +183,8 @@ export type Database = {
           client_id: string
           client_sequence: number | null
           created_at: string
+          created_by_id: string | null
+          created_by_role: string | null
           currency: string | null
           discount_percent: number | null
           due_date: string
@@ -179,6 +192,7 @@ export type Database = {
           global_sequence: number | null
           id: string
           invoice_id: string | null
+          manager_id: string | null
           notes: string | null
           payment_id: string | null
           payment_method: string | null
@@ -197,6 +211,8 @@ export type Database = {
           client_id: string
           client_sequence?: number | null
           created_at?: string
+          created_by_id?: string | null
+          created_by_role?: string | null
           currency?: string | null
           discount_percent?: number | null
           due_date: string
@@ -204,6 +220,7 @@ export type Database = {
           global_sequence?: number | null
           id?: string
           invoice_id?: string | null
+          manager_id?: string | null
           notes?: string | null
           payment_id?: string | null
           payment_method?: string | null
@@ -222,6 +239,8 @@ export type Database = {
           client_id?: string
           client_sequence?: number | null
           created_at?: string
+          created_by_id?: string | null
+          created_by_role?: string | null
           currency?: string | null
           discount_percent?: number | null
           due_date?: string
@@ -229,6 +248,7 @@ export type Database = {
           global_sequence?: number | null
           id?: string
           invoice_id?: string | null
+          manager_id?: string | null
           notes?: string | null
           payment_id?: string | null
           payment_method?: string | null
@@ -251,6 +271,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "invoices_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoices_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -265,6 +292,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      managers: {
+        Row: {
+          commission_percent: number | null
+          created_at: string
+          created_by: string | null
+          department: string | null
+          email: string
+          hire_date: string | null
+          id: string
+          name: string
+          phone: string | null
+          region: string | null
+          status: string
+          target_clients: number | null
+          target_revenue: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          commission_percent?: number | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          email: string
+          hire_date?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          region?: string | null
+          status?: string
+          target_clients?: number | null
+          target_revenue?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          commission_percent?: number | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          email?: string
+          hire_date?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          region?: string | null
+          status?: string
+          target_clients?: number | null
+          target_revenue?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       payment_verifications: {
         Row: {
@@ -338,6 +419,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          manager_id: string | null
           status: string
           title: string
           updated_at: string
@@ -347,6 +429,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          manager_id?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -356,6 +439,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          manager_id?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -368,6 +452,13 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "projects_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
         ]
       }
       quotations: {
@@ -376,10 +467,13 @@ export type Database = {
           client_id: string
           client_sequence: number | null
           created_at: string
+          created_by_id: string | null
+          created_by_role: string | null
           currency: string | null
           discount_percent: number | null
           global_sequence: number | null
           id: string
+          manager_id: string | null
           notes: string | null
           pdf_url: string | null
           project_id: string
@@ -396,10 +490,13 @@ export type Database = {
           client_id: string
           client_sequence?: number | null
           created_at?: string
+          created_by_id?: string | null
+          created_by_role?: string | null
           currency?: string | null
           discount_percent?: number | null
           global_sequence?: number | null
           id?: string
+          manager_id?: string | null
           notes?: string | null
           pdf_url?: string | null
           project_id: string
@@ -416,10 +513,13 @@ export type Database = {
           client_id?: string
           client_sequence?: number | null
           created_at?: string
+          created_by_id?: string | null
+          created_by_role?: string | null
           currency?: string | null
           discount_percent?: number | null
           global_sequence?: number | null
           id?: string
+          manager_id?: string | null
           notes?: string | null
           pdf_url?: string | null
           project_id?: string
@@ -437,6 +537,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotations_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
             referencedColumns: ["id"]
           },
           {
@@ -514,6 +621,7 @@ export type Database = {
           quotation_id: string
         }[]
       }
+      get_current_manager_id: { Args: never; Returns: string }
       get_fiscal_year: { Args: { input_date?: string }; Returns: string }
       get_hex_month: { Args: { month_num: number }; Returns: string }
       get_next_client_sequence: {
@@ -548,6 +656,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_manager: { Args: { _user_id: string }; Returns: boolean }
       is_valid_admin_email: { Args: { email: string }; Returns: boolean }
     }
     Enums: {

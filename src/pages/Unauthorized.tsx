@@ -12,6 +12,8 @@ const Unauthorized = () => {
   const handleGoToDashboard = () => {
     if (role === 'admin') {
       navigate('/admin/dashboard');
+    } else if (role === 'manager') {
+      navigate('/manager/dashboard');
     } else if (role === 'user') {
       navigate('/client/dashboard');
     } else {
