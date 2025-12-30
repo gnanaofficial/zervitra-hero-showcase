@@ -90,7 +90,7 @@ const Hero = () => {
             size="lg"
             variant="outline"
             className="rounded-full border-2 border-primary/30 text-foreground hover:bg-primary/10 px-10 py-7 text-xl font-semibold transition-all duration-300 transform hover:scale-105"
-            onClick={() => window.open("https://cal.com/zervitra/30min", "_blank")}
+            onClick={() => window.open("https://app.cal.eu/zervitra", "_blank")}
           >
             <Calendar className="w-5 h-5 mr-2" />
             Schedule a Call
