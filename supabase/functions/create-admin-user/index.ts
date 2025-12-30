@@ -22,10 +22,71 @@ Deno.serve(async (req) => {
       }
     )
 
-    // Create admin user
-    const adminEmail = 'gs@gmail.com'
-    const adminPassword = 'Gnana@8179'
+    // Get the authorization header to verify the caller
+    const authHeader = req.headers.get('authorization')
+    
+    // Parse request body for email and password
+    let adminEmail: string | undefined
+    let adminPassword: string | undefined
+    
+    try {
+      const body = await req.json()
+      adminEmail = body.email
+      adminPassword = body.password
+    } catch {
+      // No body provided - this is an error now since we don't use hardcoded credentials
+    }
 
+    // If credentials are provided, verify the caller is a super admin
+    if (adminEmail && adminPassword) {
+      if (!authHeader) {
+        return new Response(
+          JSON.stringify({ error: 'Authorization required to create admin accounts' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const token = authHeader.replace('Bearer ', '')
+      const { data: { user: callerUser }, error: userError } = await supabaseAdmin.auth.getUser(token)
+      
+      if (userError || !callerUser) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid authorization token' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Verify caller is a super admin
+      const { data: callerRole, error: roleError } = await supabaseAdmin
+        .from('user_roles')
+        .select('role, is_super_admin')
+        .eq('user_id', callerUser.id)
+        .single()
+
+      if (roleError || !callerRole) {
+        return new Response(
+          JSON.stringify({ error: 'Unable to verify caller permissions' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      if (callerRole.role !== 'admin' || !callerRole.is_super_admin) {
+        return new Response(
+          JSON.stringify({ error: 'Only super admins can create new admin accounts' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      console.log('[create-admin-user] Super admin creating new admin:', adminEmail)
+    } else {
+      // No credentials provided - return error
+      return new Response(
+        JSON.stringify({ error: 'Email and password are required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Create admin user
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: adminEmail,
       password: adminPassword,
@@ -42,7 +103,7 @@ Deno.serve(async (req) => {
 
       console.log('[create-admin-user] createUser failed', { status, code, msg })
 
-      // If user already exists, update password + ensure role (idempotent)
+      // If user already exists
       const isEmailExists =
         status === 422 ||
         code === 'email_exists' ||
@@ -50,67 +111,30 @@ Deno.serve(async (req) => {
         /email.*exists/i.test(msg)
 
       if (isEmailExists) {
-        // listUsers is paginated; scan a few pages to find the user
-        let existingUser: any | null = null
-        for (let page = 1; page <= 10; page++) {
-          const { data, error: listError } = await supabaseAdmin.auth.admin.listUsers({
-            page,
-            perPage: 200,
-          })
-          if (listError) throw listError
-
-          existingUser = (data?.users ?? []).find((u) => u.email === adminEmail) ?? null
-          if (existingUser) break
-
-          if (!data?.users?.length) break
-        }
-
-        if (!existingUser) {
-          throw new Error('User exists but could not be found via listUsers')
-        }
-
-        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
-          password: adminPassword,
-        })
-        if (updateError) throw updateError
-
-        const { error: roleError } = await supabaseAdmin
-          .from('user_roles')
-          .upsert(
-            {
-              user_id: existingUser.id,
-              role: 'admin',
-            },
-            {
-              onConflict: 'user_id,role',
-              ignoreDuplicates: true,
-            }
-          )
-
-        if (roleError) throw roleError
-
         return new Response(
-          JSON.stringify({
-            success: true,
-            message: 'Admin user already existed; password updated and role ensured',
-            user_id: existingUser.id,
+          JSON.stringify({ 
+            success: false, 
+            error: 'A user with this email already exists' 
           }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
       throw authError
     }
 
-    // Insert admin role for new user
+    // Insert admin role for new user (not super admin by default)
     const { error: roleError } = await supabaseAdmin
       .from('user_roles')
       .insert({ 
         user_id: authData.user.id, 
-        role: 'admin' 
+        role: 'admin',
+        is_super_admin: false
       })
 
     if (roleError) throw roleError
+
+    console.log('[create-admin-user] Admin created successfully:', authData.user.id)
 
     return new Response(
       JSON.stringify({ 
@@ -123,6 +147,7 @@ Deno.serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error('[create-admin-user] Error:', errorMessage)
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { 
