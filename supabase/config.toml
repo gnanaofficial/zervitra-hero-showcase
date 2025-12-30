@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.send-payment-verification-email]
 verify_jwt = false
+
+[functions.upload-pdf-r2]
+verify_jwt = false
+
+[functions.send-quotation-acceptance-email]
+verify_jwt = false

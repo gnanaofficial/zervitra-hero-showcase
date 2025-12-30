@@ -18,12 +18,14 @@ import {
   RefreshCw,
   Clock,
   CheckCircle,
+  Eye,
 } from "lucide-react";
 import { ExpandButton } from "@/components/dashboard/ExpandButton";
 import { ExpandedViewContainer } from "@/components/dashboard/ExpandedViewContainer";
 import { ExpandedProjectsTable } from "@/components/dashboard/ExpandedProjectsTable";
 import { ExpandedQuotationsTable } from "@/components/dashboard/ExpandedQuotationsTable";
 import { ExpandedInvoicesTable } from "@/components/dashboard/ExpandedInvoicesTable";
+import { QuotationDetailDialog } from "@/components/dashboard/QuotationDetailDialog";
 import {
   exportProjectsToCSV,
   exportProjectsToPDF,
@@ -43,6 +45,8 @@ const ClientDashboard = () => {
   const [expandedView, setExpandedView] = useState<ExpandedView>(null);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [paidInvoiceId, setPaidInvoiceId] = useState<string | null>(null);
+  const [selectedQuotation, setSelectedQuotation] = useState<any>(null);
+  const [showQuotationDetail, setShowQuotationDetail] = useState(false);
 
   // Handle payment success redirect
   useEffect(() => {
@@ -318,7 +322,14 @@ const ClientDashboard = () => {
                   
                   <div className="space-y-3">
                     {quotations.map((quote) => (
-                      <div key={quote.id} className="flex items-center justify-between p-3 rounded-xl bg-background/50 border border-border/30">
+                      <div 
+                        key={quote.id} 
+                        className="flex items-center justify-between p-3 rounded-xl bg-background/50 border border-border/30 cursor-pointer hover:border-primary/30 transition-colors"
+                        onClick={() => {
+                          setSelectedQuotation(quote);
+                          setShowQuotationDetail(true);
+                        }}
+                      >
                         <div>
                           <h4 className="font-medium text-foreground text-sm">
                             {quote.projects?.title || 'Untitled Project'}
@@ -335,19 +346,21 @@ const ClientDashboard = () => {
                             <div className="font-semibold text-foreground">
                               {formatCurrency(quote.amount, quote.currency)}
                             </div>
-                            <Badge variant={getStatusBadgeVariant(quote.status)} className="text-xs">
+                            <Badge variant={getStatusBadgeVariant(quote.status)} className="text-xs capitalize">
                               {quote.status}
                             </Badge>
                           </div>
-                          {(quote as any).pdf_url && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => window.open((quote as any).pdf_url, '_blank')}
-                            >
-                              <FileText className="w-4 h-4" />
-                            </Button>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedQuotation(quote);
+                              setShowQuotationDetail(true);
+                            }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -465,6 +478,16 @@ const ClientDashboard = () => {
           open={showPaymentSuccess}
           onClose={handlePaymentDialogClose}
           invoiceId={paidInvoiceId || ''}
+        />
+
+        {/* Quotation Detail Dialog */}
+        <QuotationDetailDialog
+          quotation={selectedQuotation}
+          open={showQuotationDetail}
+          onOpenChange={setShowQuotationDetail}
+          onStatusUpdate={refreshData}
+          clientName={user?.email?.split('@')[0] || 'Client'}
+          clientEmail={user?.email || ''}
         />
       </div>
     </>

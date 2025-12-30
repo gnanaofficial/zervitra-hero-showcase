@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -295,5 +297,11 @@
       hsl(var(--card) / 0.4)
     );
     border: 1px solid hsl(var(--border) / 0.3);
+  }
+
+  /* Signature font utility */
+  .font-signature {
+    font-family: 'Dancing Script', cursive;
+    font-weight: 500;
   }
 }
