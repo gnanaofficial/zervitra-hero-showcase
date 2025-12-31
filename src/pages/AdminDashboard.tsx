@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useDashboardData } from "@/hooks/useDashboardData";
+import { useAdminDashboardData } from "@/hooks/useAdminDashboardData";
 import { formatCurrency } from "@/lib/payments";
 import { format } from "date-fns";
 import {
@@ -46,7 +46,7 @@ type ExpandedView = "projects" | "quotations" | "invoices" | null;
 const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { loading, error, projects, quotations, invoices, allProjects, allQuotations, allInvoices, overview, refreshData } = useDashboardData();
+  const { loading, error, projects, quotations, invoices, clients, allProjects, allQuotations, allInvoices, overview, refreshData } = useAdminDashboardData();
   const [expandedView, setExpandedView] = useState<ExpandedView>(null);
 
   const getStatusBadgeVariant = (status: string) => {
@@ -191,8 +191,8 @@ const AdminDashboard = () => {
                   </div>
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">Total Clients</h3>
-                <div className="text-3xl font-bold text-foreground mb-2">12</div>
-                <p className="text-sm text-muted-foreground">8 active • 4 inactive</p>
+                <div className="text-3xl font-bold text-foreground mb-2">{overview.totalClients}</div>
+                <p className="text-sm text-muted-foreground">{overview.activeClients} active</p>
               </motion.div>
 
               {/* Projects Overview */}
