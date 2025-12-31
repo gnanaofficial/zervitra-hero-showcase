@@ -46,6 +46,7 @@ interface ExpandedInvoicesTableProps {
   onPaymentSuccess: () => void;
   onRowClick?: (invoice: Invoice) => void;
   loading?: boolean;
+  showPaymentActions?: boolean;
 }
 
 export const ExpandedInvoicesTable = memo(({
@@ -55,6 +56,7 @@ export const ExpandedInvoicesTable = memo(({
   onPaymentSuccess,
   onRowClick,
   loading = false,
+  showPaymentActions = true,
 }: ExpandedInvoicesTableProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -296,7 +298,7 @@ export const ExpandedInvoicesTable = memo(({
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        {invoice.status === "pending" || invoice.status === "overdue" || invoice.status === "sent" ? (
+                        {showPaymentActions && (invoice.status === "pending" || invoice.status === "overdue" || invoice.status === "sent") ? (
                           <PaymentButton
                             invoiceId={invoice.id}
                             clientId={invoice.client_id}
