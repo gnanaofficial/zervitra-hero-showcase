@@ -68,7 +68,7 @@ export function CreateClientDialog({ onSuccess }: CreateClientDialogProps) {
 
     const password = watch("password");
 
-    // Fetch managers when dialog opens
+    // Fetch managers when dialog opens (only for admins)
     useEffect(() => {
         if (open && role === 'admin') {
             fetchManagers();
@@ -306,8 +306,8 @@ export function CreateClientDialog({ onSuccess }: CreateClientDialogProps) {
                             />
                         </div>
 
-                        {/* Manager Assignment */}
-                        {managers.length > 0 && (
+                        {/* Manager Assignment - Only show for Admins */}
+                        {role === 'admin' && managers.length > 0 && (
                             <div className="space-y-2 md:col-span-2 border-t pt-4">
                                 <Label className="flex items-center gap-2">
                                     <Users className="w-4 h-4 text-muted-foreground" />

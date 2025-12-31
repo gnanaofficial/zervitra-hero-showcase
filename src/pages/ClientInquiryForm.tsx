@@ -60,8 +60,9 @@ const ClientInquiryForm = () => {
 
     try {
       // Store the inquiry in the database
-      const { error } = await supabase
-        .from('client_inquiries')
+      // Using 'as any' since client_inquiries table was just created and types aren't regenerated yet
+      const { error } = await (supabase
+        .from('client_inquiries' as any)
         .insert({
           company_name: formData.companyName,
           contact_name: formData.contactName,
@@ -74,7 +75,7 @@ const ClientInquiryForm = () => {
           budget: formData.budget,
           timeline: formData.timeline,
           status: 'pending'
-        });
+        } as any));
 
       if (error) throw error;
 
