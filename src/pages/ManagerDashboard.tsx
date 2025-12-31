@@ -8,6 +8,7 @@ import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { CreateClientDialog } from '@/components/dashboard/CreateClientDialog';
 import { 
   Users, 
   FileText, 
@@ -19,7 +20,8 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  UserPlus
 } from 'lucide-react';
 import { format } from 'date-fns';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -240,6 +242,7 @@ const ManagerDashboard = () => {
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh
               </Button>
+              <CreateClientDialog onSuccess={fetchData} />
               <Button onClick={() => navigate('/manager/quotation-generator')}>
                 <Plus className="w-4 h-4 mr-2" />
                 New Quotation

@@ -31,6 +31,7 @@ import CreateManagerDialog from "@/components/dashboard/CreateManagerDialog";
 import ManagersSection from "@/components/dashboard/ManagersSection";
 import { DraftQuotationsSection } from "@/components/dashboard/DraftQuotationsSection";
 import { QuotationResponsesSection } from "@/components/dashboard/QuotationResponsesSection";
+import InquiriesSection from "@/components/dashboard/InquiriesSection";
 import {
   exportProjectsToCSV,
   exportProjectsToPDF,
@@ -450,6 +451,13 @@ const AdminDashboard = () => {
                 </motion.div>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Client Inquiries Section */}
+        <section className="py-8 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <InquiriesSection onRefresh={refreshData} />
           </div>
         </section>
 

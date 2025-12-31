@@ -14,6 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_inquiries: {
+        Row: {
+          assigned_manager_id: string | null
+          budget: string | null
+          city: string | null
+          company_name: string
+          contact_name: string | null
+          converted_to_client_id: string | null
+          country: string | null
+          created_at: string
+          email: string
+          id: string
+          notes: string | null
+          phone: string
+          project_description: string | null
+          service_interest: string
+          status: string
+          timeline: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_manager_id?: string | null
+          budget?: string | null
+          city?: string | null
+          company_name: string
+          contact_name?: string | null
+          converted_to_client_id?: string | null
+          country?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          notes?: string | null
+          phone: string
+          project_description?: string | null
+          service_interest: string
+          status?: string
+          timeline?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_manager_id?: string | null
+          budget?: string | null
+          city?: string | null
+          company_name?: string
+          contact_name?: string | null
+          converted_to_client_id?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          notes?: string | null
+          phone?: string
+          project_description?: string | null
+          service_interest?: string
+          status?: string
+          timeline?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_inquiries_assigned_manager_id_fkey"
+            columns: ["assigned_manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_inquiries_converted_to_client_id_fkey"
+            columns: ["converted_to_client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_sequences: {
         Row: {
           client_uuid: string

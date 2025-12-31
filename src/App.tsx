@@ -30,6 +30,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Unauthorized = lazy(() => import("./pages/Unauthorized"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const ClientInquiryForm = lazy(() => import("./pages/ClientInquiryForm"));
 
 // Service detail pages
 const WebDevelopment = lazy(() => import("./pages/services/WebDevelopment"));
@@ -82,6 +83,9 @@ const App = () => (
                   {/* Legal pages */}
                   <Route path="/terms" element={<TermsAndConditions />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
+
+                  {/* Public client inquiry form */}
+                  <Route path="/get-started" element={<ClientInquiryForm />} />
 
                   {/* Protected routes - Role-based */}
                   <Route
