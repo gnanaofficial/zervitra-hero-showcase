@@ -12,9 +12,12 @@ interface UploadRequest {
   fileType: string;
   fileData: string; // Base64 encoded file data
   folder?: string; // Optional folder path (e.g., "quotations" or "invoices")
+  clientId?: string; // Optional client ID for organization
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log("upload-pdf-r2 function invoked");
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -24,24 +27,31 @@ const handler = async (req: Request): Promise<Response> => {
     const accessKeyId = Deno.env.get("R2_ACCESS_KEY_ID");
     const secretAccessKey = Deno.env.get("R2_SECRET_ACCESS_KEY");
     const bucketName = Deno.env.get("R2_BUCKET_NAME");
+    const publicUrl = Deno.env.get("R2_PUBLIC_URL");
+
+    console.log("R2 Config check - accountId:", !!accountId, "accessKeyId:", !!accessKeyId, "secretAccessKey:", !!secretAccessKey, "bucketName:", bucketName, "publicUrl:", publicUrl);
 
     if (!accountId || !accessKeyId || !secretAccessKey || !bucketName) {
-      console.error("Missing R2 credentials");
-      throw new Error("R2 configuration is incomplete");
+      console.error("Missing R2 credentials - accountId:", !!accountId, "accessKeyId:", !!accessKeyId, "secretAccessKey:", !!secretAccessKey, "bucketName:", !!bucketName);
+      throw new Error("R2 configuration is incomplete. Please ensure R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME are set.");
     }
 
-    const { fileName, fileType, fileData, folder = "" }: UploadRequest = await req.json();
+    const body = await req.json();
+    const { fileName, fileType, fileData, folder = "", clientId = "" }: UploadRequest = body;
+
+    console.log("Upload request - fileName:", fileName, "fileType:", fileType, "folder:", folder, "clientId:", clientId, "fileData length:", fileData?.length || 0);
 
     if (!fileName || !fileData) {
       throw new Error("fileName and fileData are required");
     }
 
-    console.log(`Uploading file: ${fileName} to R2 bucket: ${bucketName}`);
-
     // Initialize S3 client for R2
+    const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
+    console.log("R2 endpoint:", endpoint);
+
     const s3Client = new S3Client({
       region: "auto",
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      endpoint,
       credentials: {
         accessKeyId,
         secretAccessKey,
@@ -49,10 +59,25 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Decode base64 file data
-    const binaryData = Uint8Array.from(atob(fileData), c => c.charCodeAt(0));
+    let binaryData: Uint8Array;
+    try {
+      binaryData = Uint8Array.from(atob(fileData), c => c.charCodeAt(0));
+      console.log("Decoded binary data size:", binaryData.length, "bytes");
+    } catch (decodeError) {
+      console.error("Base64 decode error:", decodeError);
+      throw new Error("Invalid base64 file data");
+    }
 
     // Construct the full key (path) for the file
-    const key = folder ? `${folder}/${fileName}` : fileName;
+    // Structure: folder/clientId/fileName or folder/fileName or just fileName
+    let key = fileName;
+    if (clientId && folder) {
+      key = `${folder}/${clientId}/${fileName}`;
+    } else if (folder) {
+      key = `${folder}/${fileName}`;
+    }
+
+    console.log("Uploading to R2 - bucket:", bucketName, "key:", key);
 
     // Upload to R2
     const command = new PutObjectCommand({
@@ -63,19 +88,26 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     await s3Client.send(command);
+    console.log("Upload successful!");
 
     // Construct the public URL
-    // R2 public URLs follow the pattern: https://{custom-domain}/{key}
-    // Or use the R2.dev subdomain: https://pub-{account-hash}.r2.dev/{key}
-    // For now, we'll return a constructed URL that the user can configure
-    const publicUrl = `https://pub-${accountId}.r2.dev/${key}`;
+    // Use the custom public URL if provided, otherwise construct a default
+    let fileUrl: string;
+    if (publicUrl) {
+      // Remove trailing slash if present
+      const baseUrl = publicUrl.replace(/\/$/, '');
+      fileUrl = `${baseUrl}/${key}`;
+    } else {
+      // Fallback to R2.dev subdomain (may not work without public access enabled)
+      fileUrl = `https://${bucketName}.${accountId}.r2.dev/${key}`;
+    }
 
-    console.log(`File uploaded successfully: ${publicUrl}`);
+    console.log("File uploaded successfully. URL:", fileUrl);
 
     return new Response(
       JSON.stringify({
         success: true,
-        url: publicUrl,
+        url: fileUrl,
         key: key,
         message: "File uploaded successfully to R2"
       }),

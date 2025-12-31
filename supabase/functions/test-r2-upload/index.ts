@@ -17,13 +17,16 @@ const handler = async (req: Request): Promise<Response> => {
     const accessKeyId = Deno.env.get("R2_ACCESS_KEY_ID");
     const secretAccessKey = Deno.env.get("R2_SECRET_ACCESS_KEY");
     const bucketName = Deno.env.get("R2_BUCKET_NAME");
+    const publicUrl = Deno.env.get("R2_PUBLIC_URL");
 
     console.log("R2 Config Check:", {
       hasAccountId: !!accountId,
       hasAccessKeyId: !!accessKeyId,
       hasSecretAccessKey: !!secretAccessKey,
       hasBucketName: !!bucketName,
-      bucketName: bucketName
+      hasPublicUrl: !!publicUrl,
+      bucketName: bucketName,
+      publicUrl: publicUrl
     });
 
     if (!accountId || !accessKeyId || !secretAccessKey || !bucketName) {
@@ -104,15 +107,21 @@ startxref
     await s3Client.send(command);
 
     // Construct the public URL
-    const publicUrl = `https://pub-${accountId}.r2.dev/${fileName}`;
+    let fileUrl: string;
+    if (publicUrl) {
+      const baseUrl = publicUrl.replace(/\/$/, '');
+      fileUrl = `${baseUrl}/${fileName}`;
+    } else {
+      fileUrl = `https://${bucketName}.${accountId}.r2.dev/${fileName}`;
+    }
 
-    console.log(`Test file uploaded successfully: ${publicUrl}`);
+    console.log(`Test file uploaded successfully: ${fileUrl}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: "R2 test upload successful!",
-        url: publicUrl,
+        url: fileUrl,
         fileName: fileName,
         uploadedAt: new Date().toISOString()
       }),

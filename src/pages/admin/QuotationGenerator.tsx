@@ -301,25 +301,49 @@ const QuotationGenerator = () => {
   const generatePDF = async (): Promise<Blob | null> => {
     if (!printRef.current) return null;
     
-    const canvas = await html2canvas(printRef.current, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: isDarkPreview ? '#000000' : '#ffffff'
-    });
-    
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-    
-    const imgWidth = 210; // A4 width in mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-    return pdf.output('blob');
+    try {
+      console.log('Starting PDF generation...');
+      const canvas = await html2canvas(printRef.current, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#000000', // Dark theme for the quotation
+        logging: true
+      });
+      
+      console.log('Canvas generated, size:', canvas.width, 'x', canvas.height);
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const imgWidth = 210; // A4 width in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      // Handle multi-page PDF if content is long
+      let heightLeft = imgHeight;
+      let position = 0;
+      const pageHeight = 297; // A4 height in mm
+      
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      console.log('PDF generated successfully');
+      return pdf.output('blob');
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      return null;
+    }
   };
 
   // Save as draft (doesn't send email)
@@ -399,14 +423,17 @@ const QuotationGenerator = () => {
         const base64Data = await base64Promise;
         
         // Upload to R2 via edge function
+        console.log('Uploading PDF to R2...', { fileName, clientId: clientDetails.clientId });
         const { data: uploadData, error: uploadError } = await supabase.functions.invoke('upload-pdf-r2', {
           body: {
             fileName,
             fileType: 'application/pdf',
             fileData: base64Data,
-            folder: 'quotations'
+            folder: 'quotations',
+            clientId: clientDetails.clientId
           }
         });
+        console.log('R2 upload response:', uploadData, uploadError);
 
         if (uploadError) {
           console.error('R2 upload error:', uploadError);
@@ -564,14 +591,17 @@ const QuotationGenerator = () => {
         const base64Data = await base64Promise;
         
         // Upload to R2 via edge function
+        console.log('Uploading PDF to R2 (send)...', { fileName, clientId: clientDetails.clientId });
         const { data: uploadData, error: uploadError } = await supabase.functions.invoke('upload-pdf-r2', {
           body: {
             fileName,
             fileType: 'application/pdf',
             fileData: base64Data,
-            folder: 'quotations'
+            folder: 'quotations',
+            clientId: clientDetails.clientId
           }
         });
+        console.log('R2 upload response (send):', uploadData, uploadError);
 
         if (uploadError) {
           console.error('R2 upload error:', uploadError);
@@ -643,7 +673,9 @@ const QuotationGenerator = () => {
             description: s.name,
             amount: s.price * (1 - s.discount / 100)
           })),
-          pdfUrl: pdfUrl
+          pdfUrl: pdfUrl,
+          amountINR: calculations.netPayableINR.toLocaleString('en-IN', { maximumFractionDigits: 0 }),
+          advancePercentage: settings.advancePercentage
         }
       });
 
