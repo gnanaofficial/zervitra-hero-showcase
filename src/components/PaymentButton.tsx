@@ -66,7 +66,6 @@ const PaymentButton = ({
           title: "Payment initiated",
           description: "You will be redirected to complete the payment."
         });
-        onPaymentSuccess?.();
       } else {
         toast({
           title: "Payment failed", 

@@ -103,7 +103,10 @@ export const processRazorpayPayment = async (invoiceId: string, amount: number, 
             }
 
             // Payment successful - reload to show updated status
-            window.location.href = window.location.origin + '/client-dashboard?payment=success&invoice=' + invoiceId;
+            window.location.href =
+              window.location.origin +
+              '/client/dashboard?payment=success&invoice=' +
+              invoiceId;
             resolve({ success: true });
           } catch (err) {
             reject(err);

@@ -32,6 +32,11 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ClientInquiryForm = lazy(() => import("./pages/ClientInquiryForm"));
 
+// Manager list pages
+const ManagerClients = lazy(() => import("./pages/manager/ManagerClients"));
+const ManagerQuotations = lazy(() => import("./pages/manager/ManagerQuotations"));
+const ManagerInvoices = lazy(() => import("./pages/manager/ManagerInvoices"));
+
 // Service detail pages
 const WebDevelopment = lazy(() => import("./pages/services/WebDevelopment"));
 const AppDevelopment = lazy(() => import("./pages/services/AppDevelopment"));
@@ -127,6 +132,30 @@ const App = () => (
                     element={
                       <ManagerRoute>
                         <ManagerDashboard />
+                      </ManagerRoute>
+                    }
+                  />
+                  <Route
+                    path="/manager/clients"
+                    element={
+                      <ManagerRoute>
+                        <ManagerClients />
+                      </ManagerRoute>
+                    }
+                  />
+                  <Route
+                    path="/manager/quotations"
+                    element={
+                      <ManagerRoute>
+                        <ManagerQuotations />
+                      </ManagerRoute>
+                    }
+                  />
+                  <Route
+                    path="/manager/invoices"
+                    element={
+                      <ManagerRoute>
+                        <ManagerInvoices />
                       </ManagerRoute>
                     }
                   />

@@ -162,7 +162,7 @@ const ClientDashboard = () => {
           <div className="pt-24 pb-8 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
             <div className="text-center">
               <p className="text-destructive mb-4">{error}</p>
-              <Button onClick={refreshData}>
+              <Button onClick={() => refreshData('manual')}>
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Retry
               </Button>

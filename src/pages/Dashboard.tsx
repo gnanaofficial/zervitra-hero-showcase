@@ -98,7 +98,7 @@ const Dashboard = () => {
           <div className="pt-24 pb-8 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
             <div className="text-center">
               <p className="text-destructive mb-4">{error}</p>
-              <Button onClick={refreshData}>
+              <Button onClick={() => refreshData('manual')}>
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Retry
               </Button>
@@ -169,7 +169,7 @@ const Dashboard = () => {
                 </div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-foreground">Projects</h3>
-                  <Button onClick={refreshData} variant="ghost" size="sm">
+                  <Button onClick={() => refreshData('manual')} variant="ghost" size="sm">
                     <RefreshCw className="w-4 h-4" />
                   </Button>
                 </div>
