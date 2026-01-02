@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { decode as base64Decode } from "https://deno.land/std@0.190.0/encoding/base64.ts";
 import { S3Client, PutObjectCommand } from "npm:@aws-sdk/client-s3@3.577.0";
 
 const corsHeaders = {
@@ -11,7 +12,7 @@ const corsHeaders = {
 interface UploadRequest {
   fileName: string;
   fileType: string;
-  fileData: string; // Base64 encoded file data
+  fileData: string; // Base64 encoded file data (optionally a data URL)
   folder?: string; // Optional folder path (e.g., "quotations" or "invoices")
   clientId?: string; // Optional client ID for organization
 }
@@ -98,10 +99,15 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
 
-    // Decode base64 file data
+    // Decode base64 file data WITHOUT atob() to avoid huge temporary strings (prevents memory limit issues)
     let binaryData: Uint8Array;
     try {
-      binaryData = Uint8Array.from(atob(fileData), (c) => c.charCodeAt(0));
+      // Accept either raw base64 or a full data URL like "data:application/pdf;base64,..."
+      const cleanedBase64 = fileData.includes(",")
+        ? fileData.split(",")[1]
+        : fileData;
+
+      binaryData = base64Decode(cleanedBase64);
       console.log("Decoded binary data size:", binaryData.length, "bytes");
     } catch (decodeError) {
       console.error("Base64 decode error:", decodeError);
@@ -127,31 +133,15 @@ const handler = async (req: Request): Promise<Response> => {
       ContentType: fileType || "application/pdf",
     });
 
-    console.log("Attempting to upload to R2...", { bucket: bucketName, key });
-
-    try {
-      await s3Client.send(command);
-      console.log("Upload successful!");
-    } catch (uploadError) {
-      console.error("S3 upload error:", uploadError);
-      throw uploadError;
-    }
+    await s3Client.send(command);
 
     // Construct the public URL
-    // Use the custom public URL if provided, otherwise construct a default
     let fileUrl: string;
     if (publicUrl) {
-      // Remove trailing slash if present
       const baseUrl = publicUrl.replace(/\/$/, "");
       fileUrl = `${baseUrl}/${key}`;
-      console.log("Constructed URL from R2_PUBLIC_URL:", fileUrl);
     } else {
-      // Fallback to R2.dev subdomain (may not work without public access enabled)
       fileUrl = `https://${bucketName}.${accountId}.r2.dev/${key}`;
-      console.log(
-        "Constructed URL from bucket/account (no R2_PUBLIC_URL):",
-        fileUrl
-      );
     }
 
     console.log("File uploaded successfully. Final URL:", fileUrl);
@@ -160,7 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({
         success: true,
         url: fileUrl,
-        key: key,
+        key,
         message: "File uploaded successfully to R2",
       }),
       {
@@ -172,13 +162,10 @@ const handler = async (req: Request): Promise<Response> => {
     console.error("Error uploading to R2:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
-    return new Response(
-      JSON.stringify({ error: errorMessage, success: false }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return new Response(JSON.stringify({ error: errorMessage, success: false }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 };
 
