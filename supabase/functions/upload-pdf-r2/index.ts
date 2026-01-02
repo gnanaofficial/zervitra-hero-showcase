@@ -3,7 +3,8 @@ import { S3Client, PutObjectCommand } from "npm:@aws-sdk/client-s3@3.577.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -17,7 +18,7 @@ interface UploadRequest {
 
 const handler = async (req: Request): Promise<Response> => {
   console.log("upload-pdf-r2 function invoked");
-  
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -29,17 +30,56 @@ const handler = async (req: Request): Promise<Response> => {
     const bucketName = Deno.env.get("R2_BUCKET_NAME");
     const publicUrl = Deno.env.get("R2_PUBLIC_URL");
 
-    console.log("R2 Config check - accountId:", !!accountId, "accessKeyId:", !!accessKeyId, "secretAccessKey:", !!secretAccessKey, "bucketName:", bucketName, "publicUrl:", publicUrl);
+    console.log(
+      "R2 Config check - accountId:",
+      !!accountId,
+      "accessKeyId:",
+      !!accessKeyId,
+      "secretAccessKey:",
+      !!secretAccessKey,
+      "bucketName:",
+      bucketName,
+      "publicUrl:",
+      publicUrl
+    );
 
     if (!accountId || !accessKeyId || !secretAccessKey || !bucketName) {
-      console.error("Missing R2 credentials - accountId:", !!accountId, "accessKeyId:", !!accessKeyId, "secretAccessKey:", !!secretAccessKey, "bucketName:", !!bucketName);
-      throw new Error("R2 configuration is incomplete. Please ensure R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME are set.");
+      console.error(
+        "Missing R2 credentials - accountId:",
+        !!accountId,
+        "accessKeyId:",
+        !!accessKeyId,
+        "secretAccessKey:",
+        !!secretAccessKey,
+        "bucketName:",
+        !!bucketName
+      );
+      throw new Error(
+        "R2 configuration is incomplete. Please ensure R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME are set."
+      );
     }
 
     const body = await req.json();
-    const { fileName, fileType, fileData, folder = "", clientId = "" }: UploadRequest = body;
+    const {
+      fileName,
+      fileType,
+      fileData,
+      folder = "",
+      clientId = "",
+    }: UploadRequest = body;
 
-    console.log("Upload request - fileName:", fileName, "fileType:", fileType, "folder:", folder, "clientId:", clientId, "fileData length:", fileData?.length || 0);
+    console.log(
+      "Upload request - fileName:",
+      fileName,
+      "fileType:",
+      fileType,
+      "folder:",
+      folder,
+      "clientId:",
+      clientId,
+      "fileData length:",
+      fileData?.length || 0
+    );
 
     if (!fileName || !fileData) {
       throw new Error("fileName and fileData are required");
@@ -61,7 +101,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Decode base64 file data
     let binaryData: Uint8Array;
     try {
-      binaryData = Uint8Array.from(atob(fileData), c => c.charCodeAt(0));
+      binaryData = Uint8Array.from(atob(fileData), (c) => c.charCodeAt(0));
       console.log("Decoded binary data size:", binaryData.length, "bytes");
     } catch (decodeError) {
       console.error("Base64 decode error:", decodeError);
@@ -87,29 +127,41 @@ const handler = async (req: Request): Promise<Response> => {
       ContentType: fileType || "application/pdf",
     });
 
-    await s3Client.send(command);
-    console.log("Upload successful!");
+    console.log("Attempting to upload to R2...", { bucket: bucketName, key });
+
+    try {
+      await s3Client.send(command);
+      console.log("Upload successful!");
+    } catch (uploadError) {
+      console.error("S3 upload error:", uploadError);
+      throw uploadError;
+    }
 
     // Construct the public URL
     // Use the custom public URL if provided, otherwise construct a default
     let fileUrl: string;
     if (publicUrl) {
       // Remove trailing slash if present
-      const baseUrl = publicUrl.replace(/\/$/, '');
+      const baseUrl = publicUrl.replace(/\/$/, "");
       fileUrl = `${baseUrl}/${key}`;
+      console.log("Constructed URL from R2_PUBLIC_URL:", fileUrl);
     } else {
       // Fallback to R2.dev subdomain (may not work without public access enabled)
       fileUrl = `https://${bucketName}.${accountId}.r2.dev/${key}`;
+      console.log(
+        "Constructed URL from bucket/account (no R2_PUBLIC_URL):",
+        fileUrl
+      );
     }
 
-    console.log("File uploaded successfully. URL:", fileUrl);
+    console.log("File uploaded successfully. Final URL:", fileUrl);
 
     return new Response(
       JSON.stringify({
         success: true,
         url: fileUrl,
         key: key,
-        message: "File uploaded successfully to R2"
+        message: "File uploaded successfully to R2",
       }),
       {
         status: 200,
@@ -118,7 +170,8 @@ const handler = async (req: Request): Promise<Response> => {
     );
   } catch (error: unknown) {
     console.error("Error uploading to R2:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
     return new Response(
       JSON.stringify({ error: errorMessage, success: false }),
       {

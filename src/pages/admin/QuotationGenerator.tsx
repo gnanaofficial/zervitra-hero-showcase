@@ -25,7 +25,7 @@ import {
   Info,
   Mail,
   Save,
-  Loader2
+  Loader2,
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -91,8 +91,8 @@ interface PastInvoice {
 
 const defaultServices: ServiceItem[] = [
   { id: "1", name: "UI/UX", price: 45.95, discount: 10.25, isFree: false },
-  { id: "2", name: "FRONT END", price: 57.44, discount: 9.00, isFree: false },
-  { id: "3", name: "BACKEND", price: 57.44, discount: 15.00, isFree: false },
+  { id: "2", name: "FRONT END", price: 57.44, discount: 9.0, isFree: false },
+  { id: "3", name: "BACKEND", price: 57.44, discount: 15.0, isFree: false },
   { id: "4", name: "DATABASE", price: 34.46, discount: 13.03, isFree: false },
   { id: "5", name: "DOMAIN", price: 0, discount: 0, isFree: true },
   { id: "6", name: "HOSTING", price: 0, discount: 0, isFree: true },
@@ -146,10 +146,18 @@ const QuotationGenerator = () => {
     signatureImage: "/src/Resources/default-signature.png",
   });
 
-  const [selectedAddons, setSelectedAddons] = useState<string[]>(complimentaryAddons);
+  const [selectedAddons, setSelectedAddons] =
+    useState<string[]>(complimentaryAddons);
   const [pastQuotations, setPastQuotations] = useState<PastQuotation[]>([]);
   const [pastInvoices, setPastInvoices] = useState<PastInvoice[]>([]);
   const [useNewQuotationId, setUseNewQuotationId] = useState(true);
+
+  // Invalidate saved PDF if form changes
+  useEffect(() => {
+    if (savedPdfUrl) {
+      setSavedPdfUrl(null);
+    }
+  }, [services, settings, clientDetails, selectedAddons]);
 
   useEffect(() => {
     fetchClients();
@@ -157,15 +165,19 @@ const QuotationGenerator = () => {
 
   const fetchClients = async () => {
     const { data, error } = await supabase
-      .from('clients')
-      .select('id, company_name, contact_email, phone, address, city, state, country');
+      .from("clients")
+      .select(
+        "id, company_name, contact_email, phone, address, city, state, country"
+      );
 
     if (!error && data) {
       // Type assertion to handle the new columns that may not be in types yet
-      setClients(data.map(c => ({
-        ...c,
-        client_id: (c as any).client_id || null,
-      })));
+      setClients(
+        data.map((c) => ({
+          ...c,
+          client_id: (c as any).client_id || null,
+        }))
+      );
     }
   };
 
@@ -174,74 +186,85 @@ const QuotationGenerator = () => {
     setPastQuotations([]);
     setPastInvoices([]);
     setUseNewQuotationId(true);
-    
-    const client = clients.find(c => c.id === clientUuid);
+
+    const client = clients.find((c) => c.id === clientUuid);
     if (client) {
-      const fullAddress = [client.address, client.city, client.state, client.country]
+      const fullAddress = [
+        client.address,
+        client.city,
+        client.state,
+        client.country,
+      ]
         .filter(Boolean)
-        .join(', ');
-      
+        .join(", ");
+
       setClientDetails({
-        id: client.client_id || '',
+        id: client.client_id || "",
         uuid: client.id,
-        name: client.company_name || 'Unnamed Client',
-        email: client.contact_email || '',
-        phone: client.phone || '',
+        name: client.company_name || "Unnamed Client",
+        email: client.contact_email || "",
+        phone: client.phone || "",
         address: fullAddress,
-        clientId: client.client_id || `TEMP-${client.id.substring(0, 8).toUpperCase()}`,
+        clientId:
+          client.client_id || `TEMP-${client.id.substring(0, 8).toUpperCase()}`,
       });
 
       // Fetch past quotations and invoices for this client
       const [quotationsResult, invoicesResult] = await Promise.all([
         supabase
-          .from('quotations')
-          .select('id, quotation_id, status, created_at')
-          .eq('client_id', clientUuid)
-          .order('created_at', { ascending: false }),
+          .from("quotations")
+          .select("id, quotation_id, status, created_at")
+          .eq("client_id", clientUuid)
+          .order("created_at", { ascending: false }),
         supabase
-          .from('invoices')
-          .select('id, invoice_id, status, created_at')
-          .eq('client_id', clientUuid)
-          .order('created_at', { ascending: false })
+          .from("invoices")
+          .select("id, invoice_id, status, created_at")
+          .eq("client_id", clientUuid)
+          .order("created_at", { ascending: false }),
       ]);
 
       if (quotationsResult.data) {
-        setPastQuotations(quotationsResult.data.map(q => ({
-          id: q.id,
-          quotation_id: q.quotation_id || '',
-          status: q.status,
-          created_at: q.created_at
-        })));
+        setPastQuotations(
+          quotationsResult.data.map((q) => ({
+            id: q.id,
+            quotation_id: q.quotation_id || "",
+            status: q.status,
+            created_at: q.created_at,
+          }))
+        );
       }
 
       if (invoicesResult.data) {
-        setPastInvoices(invoicesResult.data.map(i => ({
-          id: i.id,
-          invoice_id: i.invoice_id || '',
-          status: i.status,
-          created_at: i.created_at
-        })));
+        setPastInvoices(
+          invoicesResult.data.map((i) => ({
+            id: i.id,
+            invoice_id: i.invoice_id || "",
+            status: i.status,
+            created_at: i.created_at,
+          }))
+        );
       }
 
       // Generate Quotation ID using database function
       try {
-        const clientIdToUse = client.client_id || `TEMP-${client.id.substring(0, 8).toUpperCase()}`;
-        
-        const { data: quotationData, error: quotationError } = await supabase
-          .rpc('generate_quotation_id', {
+        const clientIdToUse =
+          client.client_id || `TEMP-${client.id.substring(0, 8).toUpperCase()}`;
+
+        const { data: quotationData, error: quotationError } =
+          await supabase.rpc("generate_quotation_id", {
             p_client_uuid: client.id,
             p_client_id: clientIdToUse,
-            p_version: 1
+            p_version: 1,
           });
 
         if (quotationError) {
-          console.error('Error generating quotation ID:', quotationError);
+          console.error("Error generating quotation ID:", quotationError);
           setQuotationId(`QN1-GEN-${Date.now().toString().slice(-4)}`);
         } else if (quotationData && quotationData.length > 0) {
           setQuotationId(quotationData[0].quotation_id);
           setQuotationSequences({
             clientSequence: quotationData[0].client_sequence,
-            globalSequence: quotationData[0].global_sequence
+            globalSequence: quotationData[0].global_sequence,
           });
         }
       } catch (e) {
@@ -260,12 +283,18 @@ const QuotationGenerator = () => {
 
     const totalDiscount = services.reduce((acc, service) => {
       if (service.isFree) return acc;
-      return acc + (service.price * service.discount / 100);
+      return acc + (service.price * service.discount) / 100;
     }, 0);
 
     const gstAmount = subtotal * (settings.gstPercentage / 100);
     const netPayableUSD = subtotal + gstAmount;
     const netPayableINR = netPayableUSD * settings.exchangeRate;
+
+    // Calculate advance payment
+    const advancePayableUSD =
+      netPayableUSD * (settings.advancePercentage / 100);
+    const advancePayableINR =
+      netPayableINR * (settings.advancePercentage / 100);
 
     return {
       subtotal,
@@ -273,8 +302,15 @@ const QuotationGenerator = () => {
       gstAmount,
       netPayableUSD,
       netPayableINR,
+      advancePayableUSD,
+      advancePayableINR,
     };
-  }, [services, settings.gstPercentage, settings.exchangeRate]);
+  }, [
+    services,
+    settings.gstPercentage,
+    settings.exchangeRate,
+    settings.advancePercentage,
+  ]);
 
   const handleAddService = () => {
     const newService: ServiceItem = {
@@ -288,114 +324,122 @@ const QuotationGenerator = () => {
   };
 
   const handleRemoveService = (id: string) => {
-    setServices(services.filter(s => s.id !== id));
+    setServices(services.filter((s) => s.id !== id));
   };
 
-  const handleServiceChange = (id: string, field: keyof ServiceItem, value: any) => {
-    setServices(services.map(s =>
-      s.id === id ? { ...s, [field]: value } : s
-    ));
+  const handleServiceChange = (
+    id: string,
+    field: keyof ServiceItem,
+    value: any
+  ) => {
+    setServices(
+      services.map((s) => (s.id === id ? { ...s, [field]: value } : s))
+    );
   };
 
   // Helper function to generate PDF from the preview
   const generatePDF = async (): Promise<Blob | null> => {
     if (!printRef.current) return null;
-    
+
     try {
-      console.log('Starting PDF generation...');
+      console.log("Starting PDF generation...");
       const canvas = await html2canvas(printRef.current, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: '#000000', // Dark theme for the quotation
-        logging: true
+        backgroundColor: "#000000", // Dark theme for the quotation
+        logging: true,
       });
-      
-      console.log('Canvas generated, size:', canvas.width, 'x', canvas.height);
-      
-      const imgData = canvas.toDataURL('image/png');
+
+      console.log("Canvas generated, size:", canvas.width, "x", canvas.height);
+
+      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
       });
-      
+
       const imgWidth = 210; // A4 width in mm
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
+
       // Handle multi-page PDF if content is long
       let heightLeft = imgHeight;
       let position = 0;
       const pageHeight = 297; // A4 height in mm
-      
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
-      
+
       while (heightLeft > 0) {
         position = heightLeft - imgHeight;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
       }
-      
-      console.log('PDF generated successfully');
-      return pdf.output('blob');
+
+      console.log("PDF generated successfully");
+      return pdf.output("blob");
     } catch (error) {
-      console.error('PDF generation error:', error);
+      console.error("PDF generation error:", error);
       return null;
     }
   };
 
-  // Save as draft (doesn't send email)
-  const handleSaveDraft = async () => {
+  // Save PDF to Cloud (Generate PDF, Upload to R2/Supabase, Save to DB)
+  const handleSavePDFToCloud = async () => {
     if (!selectedClientId) {
       toast({
         title: "Error",
         description: "Please select a client first",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
     if (!quotationId) {
       toast({
         title: "Error",
-        description: "Quotation ID could not be generated. Please try again or select a different client.",
-        variant: "destructive"
+        description:
+          "Quotation ID could not be generated. Please try again or select a different client.",
+        variant: "destructive",
       });
       return;
     }
 
     setIsSavingDraft(true);
     try {
-      // Check if quotation ID already exists
-      const { data: existingQuotation } = await supabase
-        .from('quotations')
-        .select('id')
-        .eq('quotation_id', quotationId)
-        .maybeSingle();
+      // Check if quotation ID already exists (if this is a new save)
+      if (useNewQuotationId) {
+        const { data: existingQuotation } = await supabase
+          .from("quotations")
+          .select("id")
+          .eq("quotation_id", quotationId)
+          .maybeSingle();
 
-      if (existingQuotation) {
-        toast({
-          title: "Error",
-          description: `Quotation ID "${quotationId}" already exists. Please use a different ID.`,
-          variant: "destructive"
-        });
-        setIsSavingDraft(false);
-        return;
+        if (existingQuotation) {
+          toast({
+            title: "Error",
+            description: `Quotation ID "${quotationId}" already exists. Please use a different ID.`,
+            variant: "destructive",
+          });
+          setIsSavingDraft(false);
+          return;
+        }
       }
 
       // Get client's project
       const { data: projects } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('client_id', selectedClientId)
+        .from("projects")
+        .select("id")
+        .eq("client_id", selectedClientId)
         .limit(1);
 
       if (!projects?.length) {
         toast({
           title: "Error",
-          description: "No project found for this client. Please create a project first.",
-          variant: "destructive"
+          description:
+            "No project found for this client. Please create a project first.",
+          variant: "destructive",
         });
         setIsSavingDraft(false);
         return;
@@ -404,292 +448,222 @@ const QuotationGenerator = () => {
       // Generate PDF
       toast({ title: "Generating PDF...", description: "Please wait" });
       const pdfBlob = await generatePDF();
-      
+
       let pdfUrl: string | null = null;
-      
+
       if (pdfBlob) {
-        const fileName = `${quotationId.replace(/[^a-zA-Z0-9-]/g, '_')}_${Date.now()}.pdf`;
-        
+        const fileName = `${quotationId.replace(
+          /[^a-zA-Z0-9-]/g,
+          "_"
+        )}_${Date.now()}.pdf`;
+
         // Convert blob to base64 for R2 upload
         const reader = new FileReader();
         const base64Promise = new Promise<string>((resolve) => {
           reader.onloadend = () => {
-            const base64 = (reader.result as string).split(',')[1];
+            const base64 = (reader.result as string).split(",")[1];
             resolve(base64);
           };
           reader.readAsDataURL(pdfBlob);
         });
-        
+
         const base64Data = await base64Promise;
-        
+
         // Upload to R2 via edge function
-        console.log('Uploading PDF to R2...', { fileName, clientId: clientDetails.clientId });
-        const { data: uploadData, error: uploadError } = await supabase.functions.invoke('upload-pdf-r2', {
-          body: {
-            fileName,
-            fileType: 'application/pdf',
-            fileData: base64Data,
-            folder: 'quotations',
-            clientId: clientDetails.clientId
-          }
+        console.log("Uploading PDF to R2...", {
+          fileName,
+          clientId: clientDetails.clientId,
         });
-        console.log('R2 upload response:', uploadData, uploadError);
+        const { data: uploadData, error: uploadError } =
+          await supabase.functions.invoke("upload-pdf-r2", {
+            body: {
+              fileName,
+              fileType: "application/pdf",
+              fileData: base64Data,
+              folder: "quotations",
+              clientId: clientDetails.clientId,
+            },
+          });
+
+        // Comprehensive logging
+        console.log("=== R2 UPLOAD RESPONSE DEBUG ===");
+        console.log("uploadData:", uploadData);
+        console.log("uploadData type:", typeof uploadData);
+        console.log(
+          "uploadData keys:",
+          uploadData ? Object.keys(uploadData) : "null"
+        );
+        console.log("uploadData.url:", uploadData?.url);
+        console.log("uploadData.success:", uploadData?.success);
+        console.log("uploadData.error:", uploadData?.error);
+        console.log("uploadError:", uploadError);
+        console.log("=== END DEBUG ===");
 
         if (uploadError) {
-          console.error('R2 upload error:', uploadError);
-          // Fallback to Supabase storage if R2 fails
-          const { data: sbUpload, error: sbError } = await supabase.storage
-            .from('quotations')
-            .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
-          
-          if (!sbError) {
-            // Use signed URL with 1 year expiry for private bucket
-            const { data: signedData, error: signedError } = await supabase.storage
-              .from('quotations')
-              .createSignedUrl(fileName, 31536000); // 1 year in seconds
-            
-            if (!signedError && signedData) {
-              pdfUrl = signedData.signedUrl;
-            }
-          }
-        } else if (uploadData?.url) {
+          console.error("R2 upload error:", uploadError);
+          toast({
+            title: "R2 Upload Failed",
+            description: `Error: ${
+              uploadError.message || "Unknown error"
+            }. Check R2 configuration in Supabase secrets.`,
+            variant: "destructive",
+          });
+          throw new Error(
+            `Cloudflare R2 upload failed: ${
+              uploadError.message || "Unknown error"
+            }`
+          );
+        }
+
+        if (uploadData?.url) {
           pdfUrl = uploadData.url;
+          console.log("PDF uploaded successfully to R2:", pdfUrl);
+          toast({
+            title: "Uploaded to Cloudflare",
+            description: "PDF saved successfully to R2",
+          });
+        } else if (uploadData && uploadData.error) {
+          // Edge function returned an error in the response body
+          console.error("R2 edge function error:", uploadData.error);
+          toast({
+            title: "R2 Upload Error",
+            description: `${uploadData.error}`,
+            variant: "destructive",
+          });
+          throw new Error(`R2 upload error: ${uploadData.error}`);
+        } else {
+          console.error("R2 upload succeeded but no URL returned:", uploadData);
+          toast({
+            title: "R2 Configuration Error",
+            description:
+              "Upload succeeded but no URL was returned. Check R2_PUBLIC_URL in edge function secrets.",
+            variant: "destructive",
+          });
+          throw new Error(
+            "R2 upload succeeded but no URL was returned. Check R2_PUBLIC_URL configuration."
+          );
         }
       }
 
-      const servicesData = services.map(s => ({
+      if (!pdfUrl) {
+        console.error("Final pdfUrl check failed. No URL was set.");
+        throw new Error(
+          "Failed to upload PDF to cloud storage - no URL was generated"
+        );
+      }
+
+      const servicesData = services.map((s) => ({
         description: s.name,
         amount: s.isFree ? 0 : s.price * (1 - s.discount / 100),
         price: s.price,
         discount: s.discount,
-        isFree: s.isFree
+        isFree: s.isFree,
       }));
 
+      const quotationData = {
+        client_id: selectedClientId,
+        project_id: projects[0].id,
+        amount: calculations.netPayableUSD,
+        currency: "USD",
+        status: "saved",
+        quotation_id: quotationId,
+        version: 1,
+        client_sequence: quotationSequences?.clientSequence || 1,
+        global_sequence: quotationSequences?.globalSequence || 1,
+        valid_until: addDays(new Date(), settings.validityDays).toISOString(),
+        services: servicesData,
+        discount_percent:
+          settings.gstPercentage > 0 ? 0 : calculations.totalDiscount,
+        tax_percent: settings.gstPercentage,
+        notes: `Validity: ${settings.validityDays} days. Advance: ${settings.advancePercentage}%`,
+        pdf_url: pdfUrl,
+      };
+
       const { error } = await supabase
-        .from('quotations')
-        .insert({
-          client_id: selectedClientId,
-          project_id: projects[0].id,
-          amount: calculations.netPayableUSD,
-          currency: 'USD',
-          status: 'draft',
-          quotation_id: quotationId,
-          version: 1,
-          client_sequence: quotationSequences?.clientSequence || 1,
-          global_sequence: quotationSequences?.globalSequence || 1,
-          valid_until: addDays(new Date(), settings.validityDays).toISOString(),
-          services: servicesData,
-          discount_percent: settings.gstPercentage > 0 ? 0 : calculations.totalDiscount,
-          tax_percent: settings.gstPercentage,
-          notes: `Validity: ${settings.validityDays} days. Advance: ${settings.advancePercentage}%`,
-          pdf_url: pdfUrl
-        } as any);
+        .from("quotations")
+        .upsert(quotationData as any, { onConflict: "quotation_id" });
 
       if (error) throw error;
 
-      if (pdfUrl) {
-        setSavedPdfUrl(pdfUrl);
-      }
+      setSavedPdfUrl(pdfUrl);
 
       toast({
-        title: "Draft Saved",
-        description: "Quotation saved as draft"
+        title: "PDF Saved to Cloud!",
+        description: "You can now send the quotation email.",
       });
+
+      // Mark as not needing new ID if we save again
+      setUseNewQuotationId(false);
     } catch (error: any) {
+      console.error("Save PDF error:", error);
       toast({
         title: "Error",
-        description: error.message,
-        variant: "destructive"
+        description: error.message || "Failed to save PDF to cloud",
+        variant: "destructive",
       });
     } finally {
       setIsSavingDraft(false);
     }
   };
 
-  // Send quotation (saves to DB and sends email)
+  // Send email (requires saved PDF)
   const handleSendQuotation = async () => {
-    if (!selectedClientId) {
+    if (!savedPdfUrl) {
       toast({
-        title: "Error",
-        description: "Please select a client first",
-        variant: "destructive"
+        title: "Not Saved",
+        description: "Please SAVE the quotation generation before sending.",
+        variant: "destructive",
       });
       return;
     }
-    if (!quotationId) {
-      toast({
-        title: "Error",
-        description: "Quotation ID could not be generated.",
-        variant: "destructive"
-      });
-      return;
-    }
+
     if (!clientDetails.email) {
       toast({
         title: "Error",
         description: "Client email is required to send quotation",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
     setIsSending(true);
     try {
-      // Check if quotation ID already exists
-      const { data: existingQuotation } = await supabase
-        .from('quotations')
-        .select('id')
-        .eq('quotation_id', quotationId)
-        .maybeSingle();
-
-      if (existingQuotation) {
-        toast({
-          title: "Error",
-          description: `Quotation ID "${quotationId}" already exists. Please use a different ID.`,
-          variant: "destructive"
-        });
-        setIsSending(false);
-        return;
-      }
-
-      // Get client's project
-      const { data: projects } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('client_id', selectedClientId)
-        .limit(1);
-
-      if (!projects?.length) {
-        toast({
-          title: "Error",
-          description: "No project found for this client. Please create a project first.",
-          variant: "destructive"
-        });
-        setIsSending(false);
-        return;
-      }
-
-      // Generate PDF
-      toast({ title: "Generating & Sending...", description: "Please wait" });
-      const pdfBlob = await generatePDF();
-      
-      let pdfUrl: string | null = null;
-      
-      if (pdfBlob) {
-        const fileName = `${quotationId.replace(/[^a-zA-Z0-9-]/g, '_')}_${Date.now()}.pdf`;
-        
-        // Convert blob to base64 for R2 upload
-        const reader = new FileReader();
-        const base64Promise = new Promise<string>((resolve) => {
-          reader.onloadend = () => {
-            const base64 = (reader.result as string).split(',')[1];
-            resolve(base64);
-          };
-          reader.readAsDataURL(pdfBlob);
-        });
-        
-        const base64Data = await base64Promise;
-        
-        // Upload to R2 via edge function
-        console.log('Uploading PDF to R2 (send)...', { fileName, clientId: clientDetails.clientId });
-        const { data: uploadData, error: uploadError } = await supabase.functions.invoke('upload-pdf-r2', {
-          body: {
-            fileName,
-            fileType: 'application/pdf',
-            fileData: base64Data,
-            folder: 'quotations',
-            clientId: clientDetails.clientId
-          }
-        });
-        console.log('R2 upload response (send):', uploadData, uploadError);
-
-        if (uploadError) {
-          console.error('R2 upload error:', uploadError);
-          // Fallback to Supabase storage if R2 fails
-          const { data: sbUpload, error: sbError } = await supabase.storage
-            .from('quotations')
-            .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
-          
-          if (!sbError) {
-            // Use signed URL with 1 year expiry for private bucket
-            const { data: signedData, error: signedError } = await supabase.storage
-              .from('quotations')
-              .createSignedUrl(fileName, 31536000); // 1 year in seconds
-            
-            if (!signedError && signedData) {
-              pdfUrl = signedData.signedUrl;
-            }
-          }
-        } else if (uploadData?.url) {
-          pdfUrl = uploadData.url;
-        }
-      }
-
-      const servicesData = services.map(s => ({
-        description: s.name,
-        amount: s.isFree ? 0 : s.price * (1 - s.discount / 100),
-        price: s.price,
-        discount: s.discount,
-        isFree: s.isFree
-      }));
-
-      // Save to database with 'sent' status
-      const { error } = await supabase
-        .from('quotations')
-        .insert({
-          client_id: selectedClientId,
-          project_id: projects[0].id,
-          amount: calculations.netPayableUSD,
-          currency: 'USD',
-          status: 'sent',
-          quotation_id: quotationId,
-          version: 1,
-          client_sequence: quotationSequences?.clientSequence || 1,
-          global_sequence: quotationSequences?.globalSequence || 1,
-          valid_until: addDays(new Date(), settings.validityDays).toISOString(),
-          services: servicesData,
-          discount_percent: settings.gstPercentage > 0 ? 0 : calculations.totalDiscount,
-          tax_percent: settings.gstPercentage,
-          notes: `Validity: ${settings.validityDays} days. Advance: ${settings.advancePercentage}%`,
-          pdf_url: pdfUrl
-        } as any);
-
-      if (error) throw error;
-
       // Send email
-      const validUntil = format(addDays(new Date(), settings.validityDays), "MMMM d, yyyy");
+      const validUntil = format(
+        addDays(new Date(), settings.validityDays),
+        "MMMM d, yyyy"
+      );
 
-      const response = await supabase.functions.invoke('send-quotation-email', {
+      const response = await supabase.functions.invoke("send-quotation-email", {
         body: {
           to: clientDetails.email,
           clientName: clientDetails.name,
           quotationId: quotationId,
-          amount: calculations.netPayableUSD.toFixed(2),
-          currency: 'USD',
-          validUntil: validUntil,
-          signatoryName: settings.signatoryName,
-          signatoryRole: settings.signatoryRole,
-          services: services.filter(s => !s.isFree).map(s => ({
-            description: s.name,
-            amount: s.price * (1 - s.discount / 100)
-          })),
-          pdfUrl: pdfUrl,
-          amountINR: calculations.netPayableINR.toLocaleString('en-IN', { maximumFractionDigits: 0 }),
-          advancePercentage: settings.advancePercentage
-        }
+          pdfUrl: savedPdfUrl,
+        },
       });
 
       if (response.error) throw response.error;
 
+      // Update status to sent
+      const { error: updateError } = await supabase
+        .from("quotations")
+        .update({ status: "sent" })
+        .eq("quotation_id", quotationId);
+
+      if (updateError)
+        console.error("Error updating status to sent", updateError);
+
       toast({
         title: "Sent!",
-        description: "Quotation saved and sent to client's email"
+        description: "Quotation sent to client's email with PDF attachment.",
       });
     } catch (error: any) {
+      console.error("Send error:", error);
       toast({
         title: "Error",
-        description: error.message,
-        variant: "destructive"
+        description: error.message || "Failed to send email",
+        variant: "destructive",
       });
     } finally {
       setIsSending(false);
@@ -706,13 +680,18 @@ const QuotationGenerator = () => {
   };
 
   // Dynamic scale calculation for print
-  const printScale = Math.max(0.65, 0.85 - Math.max(0, services.length - 4) * 0.03);
+  const printScale = Math.max(
+    0.65,
+    0.85 - Math.max(0, services.length - 4) * 0.03
+  );
   const printWidth = 100 / printScale;
 
   return (
     <>
       <Helmet>
-        <title>{quotationId ? quotationId : "Quotation Generator - Admin | Zervitra"}</title>
+        <title>
+          {quotationId ? quotationId : "Quotation Generator - Admin | Zervitra"}
+        </title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
 
@@ -727,28 +706,45 @@ const QuotationGenerator = () => {
               className="flex items-center justify-between mb-8"
             >
               <div>
-                <h1 className="text-3xl font-bold text-foreground">Quotation Generator</h1>
-                <p className="text-muted-foreground mt-1">Create and export professional quotations</p>
+                <h1 className="text-3xl font-bold text-foreground">
+                  Quotation Generator
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  Create and export professional quotations
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 <Button
-                  variant="outline"
-                  onClick={handleSaveDraft}
+                  variant="default"
+                  onClick={handleSavePDFToCloud}
                   disabled={isSavingDraft}
                   className="gap-2"
                 >
-                  {isSavingDraft ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Save as Draft
+                  {isSavingDraft ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Save PDF to Cloud
                 </Button>
                 <Button
                   onClick={handleSendQuotation}
-                  disabled={isSending}
+                  disabled={isSending || !savedPdfUrl}
+                  className="gap-2"
+                  variant={savedPdfUrl ? "default" : "outline"}
+                >
+                  {isSending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Mail className="h-4 w-4" />
+                  )}
+                  Send Email
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handlePrint}
                   className="gap-2"
                 >
-                  {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-                  Send
-                </Button>
-                <Button variant="outline" onClick={handlePrint} className="gap-2">
                   <Printer className="h-4 w-4" />
                   Export PDF
                 </Button>
@@ -771,14 +767,18 @@ const QuotationGenerator = () => {
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <Label>Select Existing Client</Label>
-                      <Select value={selectedClientId} onValueChange={handleClientSelect}>
+                      <Select
+                        value={selectedClientId}
+                        onValueChange={handleClientSelect}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Choose a client from database..." />
                         </SelectTrigger>
                         <SelectContent>
                           {clients.map((client) => (
                             <SelectItem key={client.id} value={client.id}>
-                              {client.company_name || 'Unnamed Client'} - {client.contact_email || 'No email'}
+                              {client.company_name || "Unnamed Client"} -{" "}
+                              {client.contact_email || "No email"}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -789,7 +789,12 @@ const QuotationGenerator = () => {
                         <Label>Client Name</Label>
                         <Input
                           value={clientDetails.name}
-                          onChange={(e) => setClientDetails({ ...clientDetails, name: e.target.value })}
+                          onChange={(e) =>
+                            setClientDetails({
+                              ...clientDetails,
+                              name: e.target.value,
+                            })
+                          }
                           placeholder="Enter client name"
                         />
                       </div>
@@ -797,7 +802,12 @@ const QuotationGenerator = () => {
                         <Label>Client ID</Label>
                         <Input
                           value={clientDetails.clientId}
-                          onChange={(e) => setClientDetails({ ...clientDetails, clientId: e.target.value })}
+                          onChange={(e) =>
+                            setClientDetails({
+                              ...clientDetails,
+                              clientId: e.target.value,
+                            })
+                          }
                           placeholder="Z0701-IND-2509"
                         />
                       </div>
@@ -812,7 +822,7 @@ const QuotationGenerator = () => {
                           className="flex-1"
                         />
                         {pastQuotations.length > 0 && (
-                          <Select 
+                          <Select
                             value={useNewQuotationId ? "new" : quotationId}
                             onValueChange={(val) => {
                               if (val === "new") {
@@ -827,7 +837,9 @@ const QuotationGenerator = () => {
                               <SelectValue placeholder="Select..." />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="new">+ New Quotation</SelectItem>
+                              <SelectItem value="new">
+                                + New Quotation
+                              </SelectItem>
                               {pastQuotations.map((q) => (
                                 <SelectItem key={q.id} value={q.quotation_id}>
                                   {q.quotation_id} ({q.status})
@@ -839,30 +851,35 @@ const QuotationGenerator = () => {
                       </div>
                       {pastQuotations.length > 0 && (
                         <p className="text-xs text-muted-foreground">
-                          {pastQuotations.length} past quotation(s) found for this client
+                          {pastQuotations.length} past quotation(s) found for
+                          this client
                         </p>
                       )}
                     </div>
                     {pastInvoices.length > 0 && (
                       <div className="p-3 rounded-lg bg-secondary/30 border border-border/30">
-                        <p className="text-sm font-medium text-muted-foreground mb-2">Past Invoices</p>
+                        <p className="text-sm font-medium text-muted-foreground mb-2">
+                          Past Invoices
+                        </p>
                         <div className="flex flex-wrap gap-2">
                           {pastInvoices.slice(0, 5).map((inv) => (
-                            <span 
-                              key={inv.id} 
+                            <span
+                              key={inv.id}
                               className={`text-xs px-2 py-1 rounded ${
-                                inv.status === 'paid' 
-                                  ? 'bg-green-500/20 text-green-400' 
-                                  : inv.status === 'pending'
-                                  ? 'bg-yellow-500/20 text-yellow-400'
-                                  : 'bg-muted text-muted-foreground'
+                                inv.status === "paid"
+                                  ? "bg-green-500/20 text-green-400"
+                                  : inv.status === "pending"
+                                  ? "bg-yellow-500/20 text-yellow-400"
+                                  : "bg-muted text-muted-foreground"
                               }`}
                             >
                               {inv.invoice_id} ({inv.status})
                             </span>
                           ))}
                           {pastInvoices.length > 5 && (
-                            <span className="text-xs text-muted-foreground">+{pastInvoices.length - 5} more</span>
+                            <span className="text-xs text-muted-foreground">
+                              +{pastInvoices.length - 5} more
+                            </span>
                           )}
                         </div>
                       </div>
@@ -873,7 +890,12 @@ const QuotationGenerator = () => {
                         <Input
                           type="email"
                           value={clientDetails.email}
-                          onChange={(e) => setClientDetails({ ...clientDetails, email: e.target.value })}
+                          onChange={(e) =>
+                            setClientDetails({
+                              ...clientDetails,
+                              email: e.target.value,
+                            })
+                          }
                           placeholder="client@email.com"
                         />
                       </div>
@@ -881,7 +903,12 @@ const QuotationGenerator = () => {
                         <Label>Phone</Label>
                         <Input
                           value={clientDetails.phone}
-                          onChange={(e) => setClientDetails({ ...clientDetails, phone: e.target.value })}
+                          onChange={(e) =>
+                            setClientDetails({
+                              ...clientDetails,
+                              phone: e.target.value,
+                            })
+                          }
                           placeholder="+91XXXXXXXXXX"
                         />
                       </div>
@@ -890,7 +917,12 @@ const QuotationGenerator = () => {
                       <Label>Address</Label>
                       <Input
                         value={clientDetails.address}
-                        onChange={(e) => setClientDetails({ ...clientDetails, address: e.target.value })}
+                        onChange={(e) =>
+                          setClientDetails({
+                            ...clientDetails,
+                            address: e.target.value,
+                          })
+                        }
                         placeholder="Enter address"
                       />
                     </div>
@@ -901,37 +933,66 @@ const QuotationGenerator = () => {
                 <Card className="premium-glass border-border/50">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="text-lg">Services</CardTitle>
-                    <Button size="sm" onClick={handleAddService} className="gap-1">
+                    <Button
+                      size="sm"
+                      onClick={handleAddService}
+                      className="gap-1"
+                    >
                       <Plus className="h-4 w-4" />
                       Add Service
                     </Button>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {services.map((service) => (
-                      <div key={service.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 border border-border/30">
+                      <div
+                        key={service.id}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 border border-border/30"
+                      >
                         <div className="flex-1 grid grid-cols-4 gap-3">
                           <Input
                             value={service.name}
-                            onChange={(e) => handleServiceChange(service.id, 'name', e.target.value)}
+                            onChange={(e) =>
+                              handleServiceChange(
+                                service.id,
+                                "name",
+                                e.target.value
+                              )
+                            }
                             placeholder="Service name"
                             className="font-medium"
                           />
                           <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">Price ($)</Label>
+                            <Label className="text-xs text-muted-foreground">
+                              Price ($)
+                            </Label>
                             <Input
                               type="number"
-                              value={service.isFree ? '' : service.price}
-                              onChange={(e) => handleServiceChange(service.id, 'price', parseFloat(e.target.value) || 0)}
+                              value={service.isFree ? "" : service.price}
+                              onChange={(e) =>
+                                handleServiceChange(
+                                  service.id,
+                                  "price",
+                                  parseFloat(e.target.value) || 0
+                                )
+                              }
                               placeholder="0.00"
                               disabled={service.isFree}
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">Discount (%)</Label>
+                            <Label className="text-xs text-muted-foreground">
+                              Discount (%)
+                            </Label>
                             <Input
                               type="number"
-                              value={service.isFree ? '' : service.discount}
-                              onChange={(e) => handleServiceChange(service.id, 'discount', parseFloat(e.target.value) || 0)}
+                              value={service.isFree ? "" : service.discount}
+                              onChange={(e) =>
+                                handleServiceChange(
+                                  service.id,
+                                  "discount",
+                                  parseFloat(e.target.value) || 0
+                                )
+                              }
                               placeholder="0"
                               disabled={service.isFree}
                             />
@@ -941,9 +1002,20 @@ const QuotationGenerator = () => {
                               <Checkbox
                                 id={`free-${service.id}`}
                                 checked={service.isFree}
-                                onCheckedChange={(checked) => handleServiceChange(service.id, 'isFree', checked)}
+                                onCheckedChange={(checked) =>
+                                  handleServiceChange(
+                                    service.id,
+                                    "isFree",
+                                    checked
+                                  )
+                                }
                               />
-                              <Label htmlFor={`free-${service.id}`} className="text-sm">Free</Label>
+                              <Label
+                                htmlFor={`free-${service.id}`}
+                                className="text-sm"
+                              >
+                                Free
+                              </Label>
                             </div>
                             <Button
                               variant="ghost"
@@ -972,7 +1044,12 @@ const QuotationGenerator = () => {
                         <Input
                           type="number"
                           value={settings.gstPercentage}
-                          onChange={(e) => setSettings({ ...settings, gstPercentage: parseFloat(e.target.value) || 0 })}
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              gstPercentage: parseFloat(e.target.value) || 0,
+                            })
+                          }
                           placeholder="0"
                         />
                       </div>
@@ -981,7 +1058,12 @@ const QuotationGenerator = () => {
                         <Input
                           type="number"
                           value={settings.exchangeRate}
-                          onChange={(e) => setSettings({ ...settings, exchangeRate: parseFloat(e.target.value) || 0 })}
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              exchangeRate: parseFloat(e.target.value) || 0,
+                            })
+                          }
                           placeholder="87.05"
                         />
                       </div>
@@ -992,16 +1074,26 @@ const QuotationGenerator = () => {
                         <Input
                           type="number"
                           value={settings.validityDays}
-                          onChange={(e) => setSettings({ ...settings, validityDays: parseInt(e.target.value) || 7 })}
-                          placeholder="7"
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              validityDays: parseInt(e.target.value) || 7,
+                            })
+                          }
+                          placeholder="30"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Advance Payment (%)</Label>
+                        <Label>Advance (%)</Label>
                         <Input
                           type="number"
                           value={settings.advancePercentage}
-                          onChange={(e) => setSettings({ ...settings, advancePercentage: parseInt(e.target.value) || 67 })}
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              advancePercentage: parseInt(e.target.value) || 67,
+                            })
+                          }
                           placeholder="67"
                         />
                       </div>
@@ -1011,7 +1103,12 @@ const QuotationGenerator = () => {
                         <Label>Signatory Name</Label>
                         <Input
                           value={settings.signatoryName ?? "K.Gnana Sekhar"}
-                          onChange={(e) => setSettings({ ...settings, signatoryName: e.target.value })}
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              signatoryName: e.target.value,
+                            })
+                          }
                           placeholder="K.Gnana Sekhar"
                         />
                       </div>
@@ -1019,7 +1116,12 @@ const QuotationGenerator = () => {
                         <Label>Signatory Role</Label>
                         <Input
                           value={settings.signatoryRole ?? "MANAGER"}
-                          onChange={(e) => setSettings({ ...settings, signatoryRole: e.target.value })}
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              signatoryRole: e.target.value,
+                            })
+                          }
                           placeholder="MANAGER"
                         />
                       </div>
@@ -1028,9 +1130,13 @@ const QuotationGenerator = () => {
                       <Label>Digital Signature (Draw below)</Label>
                       <SignaturePad
                         initialData={settings.signatureImage}
-                        onSave={(data) => setSettings({ ...settings, signatureImage: data })}
+                        onSave={(data) =>
+                          setSettings({ ...settings, signatureImage: data })
+                        }
                       />
-                      <div className="text-xs text-muted-foreground text-center my-2">- OR -</div>
+                      <div className="text-xs text-muted-foreground text-center my-2">
+                        - OR -
+                      </div>
                       <Label>Upload Signature Image</Label>
                       <Input
                         type="file"
@@ -1041,7 +1147,10 @@ const QuotationGenerator = () => {
                           if (file) {
                             const reader = new FileReader();
                             reader.onloadend = () => {
-                              setSettings({ ...settings, signatureImage: reader.result as string });
+                              setSettings({
+                                ...settings,
+                                signatureImage: reader.result as string,
+                              });
                             };
                             reader.readAsDataURL(file);
                           }
@@ -1054,7 +1163,9 @@ const QuotationGenerator = () => {
                 {/* Complimentary Add-ons */}
                 <Card className="premium-glass border-border/50">
                   <CardHeader>
-                    <CardTitle className="text-lg">Complimentary Add-ons</CardTitle>
+                    <CardTitle className="text-lg">
+                      Complimentary Add-ons
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-2 gap-3">
@@ -1067,11 +1178,15 @@ const QuotationGenerator = () => {
                               if (checked) {
                                 setSelectedAddons([...selectedAddons, addon]);
                               } else {
-                                setSelectedAddons(selectedAddons.filter(a => a !== addon));
+                                setSelectedAddons(
+                                  selectedAddons.filter((a) => a !== addon)
+                                );
                               }
                             }}
                           />
-                          <Label htmlFor={addon} className="text-sm">{addon}</Label>
+                          <Label htmlFor={addon} className="text-sm">
+                            {addon}
+                          </Label>
                         </div>
                       ))}
                     </div>
@@ -1255,12 +1370,17 @@ const QuotationGenerator = () => {
                     }
                   `}</style>
 
-                <div className="quotation-preview">
+                <div className="quotation-preview" ref={printRef}>
                   <div className="main-card">
                     {/* Header */}
                     <div className="quotation-header">
                       <div className="logo-box">
-                        <img src="/src/Resources/logo/zervimain.svg" alt="ZERVITRA" className="logo-img" style={{ height: '60px', width: 'auto' }} />
+                        <img
+                          src="/src/Resources/logo/zervimain.svg"
+                          alt="ZERVITRA"
+                          className="logo-img"
+                          style={{ height: "60px", width: "auto" }}
+                        />
                       </div>
                       <div className="meta-info">
                         <div className="meta-row">
@@ -1273,7 +1393,9 @@ const QuotationGenerator = () => {
                         </div>
                         <div className="meta-row">
                           <span className="meta-label">DATE :</span>
-                          <span>{format(new Date(), "dd/MMM/yy").toUpperCase()}</span>
+                          <span>
+                            {format(new Date(), "dd/MMM/yy").toUpperCase()}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1300,7 +1422,7 @@ const QuotationGenerator = () => {
                       <table className="q-table">
                         <thead>
                           <tr>
-                            <th style={{ width: '45%' }}>ITEM/SERVICE</th>
+                            <th style={{ width: "45%" }}>ITEM/SERVICE</th>
                             <th>PRICE</th>
                             <th>DISCOUNT</th>
                             <th>NET</th>
@@ -1310,9 +1432,21 @@ const QuotationGenerator = () => {
                           {services.map((service) => (
                             <tr key={service.id}>
                               <td>{service.name}</td>
-                              <td>{service.isFree ? 'FREE' : `$${service.price.toFixed(2)}`}</td>
-                              <td>{service.isFree ? 'NA' : `${service.discount.toFixed(2)}%`}</td>
-                              <td>{service.isFree ? '$0.00' : `$${getNetPrice(service).toFixed(2)}`}</td>
+                              <td>
+                                {service.isFree
+                                  ? "FREE"
+                                  : `$${service.price.toFixed(2)}`}
+                              </td>
+                              <td>
+                                {service.isFree
+                                  ? "NA"
+                                  : `${service.discount.toFixed(2)}%`}
+                              </td>
+                              <td>
+                                {service.isFree
+                                  ? "$0.00"
+                                  : `$${getNetPrice(service).toFixed(2)}`}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -1326,34 +1460,129 @@ const QuotationGenerator = () => {
                           <Info className="w-3 h-3" /> IMPORTANT NOTES
                         </div>
                         <ul className="notes-list">
-                          <li><div className="bullet"></div> USD Values are approximate using ₹ {settings.exchangeRate} = $ 1.</li>
-                          <li><div className="bullet"></div> The total after discount is exactly ₹{calculations.netPayableINR.toFixed(0)}/- ({calculations.netPayableINR.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}).</li>
-                          <li><div className="bullet"></div> Project timeline will be shared after confirmation of order.</li>
+                          <li>
+                            <div className="bullet"></div> USD Values are
+                            approximate using ₹ {settings.exchangeRate} = $ 1.
+                          </li>
+                          <li>
+                            <div className="bullet"></div> The total after
+                            discount is exactly ₹
+                            {calculations.netPayableINR.toFixed(0)}/- (
+                            {calculations.netPayableINR.toLocaleString(
+                              "en-IN",
+                              { style: "currency", currency: "INR" }
+                            )}
+                            ).
+                          </li>
+                          <li>
+                            <div className="bullet"></div> Project timeline will
+                            be shared after confirmation of order.
+                          </li>
+                          <li>
+                            <div className="bullet"></div> Remaining balance to
+                            be cleared before project delivery/handover.
+                          </li>
                         </ul>
+                        {/* Advance Payment Info - Moved Inside Notes */}
+                        <div
+                          className="info-box gap-2 mt-2 pt-2 pb-2 px-3 rounded-lg"
+                          style={{
+                            background:
+                              "linear-gradient(to right, rgba(59, 130, 246, 0.05), rgba(147, 51, 234, 0.05))",
+                            border: "1px solid rgba(59, 130, 246, 0.2)",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                          }}
+                        >
+                          <div
+                            className="box-title flex items-center justify-between"
+                            style={{ marginBottom: "8px" }}
+                          >
+                            <span className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-primary/80 inline-block"></span>
+                              Advance Payment ({settings.advancePercentage}%)
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                              REQUIRED
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <div className="flex items-baseline gap-2">
+                              <span
+                                className="text-2xl font-bold"
+                                style={{
+                                  color: "var(--foreground)",
+                                  lineHeight: "1",
+                                  letterSpacing: "-0.02em",
+                                }}
+                              >
+                                ₹
+                                {calculations.advancePayableINR.toLocaleString(
+                                  "en-IN",
+                                  { maximumFractionDigits: 0 }
+                                )}
+                              </span>
+                              <span className="text-sm font-medium text-muted-foreground">
+                                INR
+                              </span>
+                            </div>
+                            <div
+                              className="text-xs text-muted-foreground mt-1 flex items-center gap-1 font-medium"
+                              style={{ opacity: 0.8 }}
+                            >
+                              <span>
+                                ≈ ${calculations.advancePayableUSD.toFixed(2)}{" "}
+                                USD
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="info-box" style={{ background: 'white', borderColor: '#e5e7eb' }}>
+                      <div
+                        className="info-box"
+                        style={{ background: "white", borderColor: "#e5e7eb" }}
+                      >
                         <div className="total-row">
-                          <span style={{ color: '#6b7280' }}>Subtotal</span>
-                          <span className="total-val">${(calculations.subtotal + calculations.totalDiscount).toFixed(2)}</span>
+                          <span style={{ color: "#6b7280" }}>Subtotal</span>
+                          <span className="total-val">
+                            $
+                            {(
+                              calculations.subtotal + calculations.totalDiscount
+                            ).toFixed(2)}
+                          </span>
                         </div>
-                        <div className="total-row" style={{ color: '#ef4444' }}>
+                        <div className="total-row" style={{ color: "#ef4444" }}>
                           <span>Discount</span>
-                          <span className="total-val">-${calculations.totalDiscount.toFixed(2)}</span>
+                          <span className="total-val">
+                            -${calculations.totalDiscount.toFixed(2)}
+                          </span>
                         </div>
                         <div className="total-row">
-                          <span style={{ color: '#6b7280' }}>GST ({settings.gstPercentage}%)</span>
-                          <span className="total-val">${calculations.gstAmount.toFixed(2)}</span>
+                          <span style={{ color: "#6b7280" }}>
+                            GST ({settings.gstPercentage}%)
+                          </span>
+                          <span className="total-val">
+                            ${calculations.gstAmount.toFixed(2)}
+                          </span>
                         </div>
 
                         <div className="final-total">
                           <span className="final-label">Net Payable (USD)</span>
-                          <span className="final-amount">${calculations.netPayableUSD.toFixed(2)}</span>
+                          <span className="final-amount">
+                            ${calculations.netPayableUSD.toFixed(2)}
+                          </span>
                         </div>
 
                         <div className="inr-box">
                           <div className="inr-label">APPROXIMATE INR TOTAL</div>
-                          <div className="inr-amount">₹{calculations.netPayableINR.toLocaleString('en-IN', { maximumFractionDigits: 0 })}/-</div>
+                          <div className="inr-amount">
+                            ₹
+                            {calculations.netPayableINR.toLocaleString(
+                              "en-IN",
+                              { maximumFractionDigits: 0 }
+                            )}
+                            /-
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1363,12 +1592,15 @@ const QuotationGenerator = () => {
                       {/* Terms */}
                       <div className="footer-card">
                         <div className="fc-title">
-                          <div className="fc-dot bg-blue-500"></div> TERMS & CONDITIONS
+                          <div className="fc-dot bg-blue-500"></div> TERMS &
+                          CONDITIONS
                         </div>
                         <div className="terms-content">
                           <div className="term-item">
                             <div className="term-head">VALIDITY</div>
-                            <div>Valid for {settings.validityDays} days from issue.</div>
+                            <div>
+                              Valid for {settings.validityDays} days from issue.
+                            </div>
                           </div>
                           <div className="term-item">
                             <div className="term-head">SCOPE</div>
@@ -1376,7 +1608,9 @@ const QuotationGenerator = () => {
                           </div>
                           <div className="term-item">
                             <div className="term-head">PAYMENT</div>
-                            <div>{settings.advancePercentage}% advance to confirm.</div>
+                            <div>
+                              {settings.advancePercentage}% advance to confirm.
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1384,12 +1618,14 @@ const QuotationGenerator = () => {
                       {/* Addons */}
                       <div className="footer-card">
                         <div className="fc-title">
-                          <div className="fc-dot bg-green-500"></div> COMPLIMENTARY ADD-ONS
+                          <div className="fc-dot bg-green-500"></div>{" "}
+                          COMPLIMENTARY ADD-ONS
                         </div>
                         <div className="addons-grid">
-                          {selectedAddons.slice(0, 4).map(addon => (
+                          {selectedAddons.slice(0, 4).map((addon) => (
                             <div key={addon} className="addon-tag">
-                              <CheckCircle className="w-3 h-3 text-green-500" /> {addon}
+                              <CheckCircle className="w-3 h-3 text-green-500" />{" "}
+                              {addon}
                             </div>
                           ))}
                         </div>
@@ -1398,7 +1634,8 @@ const QuotationGenerator = () => {
                       {/* Auth */}
                       <div className="footer-card">
                         <div className="fc-title">
-                          <div className="fc-dot bg-purple-500"></div> AUTHORIZATION
+                          <div className="fc-dot bg-purple-500"></div>{" "}
+                          AUTHORIZATION
                         </div>
                         <div className="sig-area">
                           {settings.signatureImage && (
@@ -1406,12 +1643,16 @@ const QuotationGenerator = () => {
                               src={settings.signatureImage}
                               alt="Signature"
                               className="h-[80px] w-auto mb-2 object-contain mix-blend-multiply"
-                              style={{ mixBlendMode: 'multiply' }}
+                              style={{ mixBlendMode: "multiply" }}
                             />
                           )}
                           <div className="sig-line"></div>
-                          <div className="sig-name">{settings.signatoryName}</div>
-                          <div className="sig-role">{settings.signatoryRole}</div>
+                          <div className="sig-name">
+                            {settings.signatoryName}
+                          </div>
+                          <div className="sig-role">
+                            {settings.signatoryRole}
+                          </div>
                         </div>
                       </div>
                     </div>

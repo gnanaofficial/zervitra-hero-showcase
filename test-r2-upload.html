@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test R2 Upload</title>
+  </head>
+  <body>
+    <h1>Test R2 Upload</h1>
+    <button onclick="testUpload()">Test Upload to R2</button>
+    <div id="result"></div>
+
+    <script>
+      async function testUpload() {
+        const resultDiv = document.getElementById("result");
+        resultDiv.innerHTML = "Testing...";
+
+        // Create a simple test PDF content (base64)
+        const testPdfBase64 =
+          "JVBERi0xLjQKJeLjz9MKMyAwIG9iago8PC9UeXBlIC9QYWdlCi9QYXJlbnQgMSAwIFIKL01lZGlhQm94IFswIDAgNjEyIDc5Ml0KL0NvbnRlbnRzIDQgMCBSCi9SZXNvdXJjZXMgPDwvUHJvY1NldCBbL1BERiAvVGV4dF0KL0ZvbnQgPDwvRjEgNSAwIFI+Pgo+Pgo+PgplbmRvYmoKNCAwIG9iago8PC9MZW5ndGggNDQ+PgpzdHJlYW0KQlQKL0YxIDI0IFRmCjEwMCA3MDAgVGQKKFRlc3QgUERGKSBUagpFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwvVHlwZSAvRm9udAovU3VidHlwZSAvVHlwZTEKL0Jhc2VGb250IC9IZWx2ZXRpY2EKPj4KZW5kb2JqCjEgMCBvYmoKPDwvVHlwZSAvUGFnZXMKL0tpZHMgWzMgMCBSXQovQ291bnQgMQo+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlIC9DYXRhbG9nCi9QYWdlcyAxIDAgUgo+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMjU1IDAwMDAwIG4gCjAwMDAwMDAzMDQgMDAwMDAgbiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMTI3IDAwMDAwIG4gCjAwMDAwMDAyMTkgMDAwMDAgbiAKdHJhaWxlcgo8PC9TaXplIDYKL1Jvb3QgMiAwIFIKPj4Kc3RhcnR4cmVmCjM1MwolJUVPRgo=";
+
+        try {
+          const response = await fetch(
+            "https://auhupuupxwxoxmcjxaxk.supabase.co/functions/v1/upload-pdf-r2",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization:
+                  "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1aHVwdXVweHd4b3htY2p4YXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2MjI0NDUsImV4cCI6MjA3MjE5ODQ0NX0.UHj0j8dAbTD6kRinKC7M2dk18hSbQehr6OXRT1uh1Ec",
+              },
+              body: JSON.stringify({
+                fileName: `test_${Date.now()}.pdf`,
+                fileType: "application/pdf",
+                fileData: testPdfBase64,
+                folder: "quotations",
+                clientId: "test-client",
+              }),
+            }
+          );
+
+          const data = await response.json();
+          console.log("Response:", data);
+
+          if (data.success && data.url) {
+            resultDiv.innerHTML = `
+                        <h3 style="color: green;">✅ Success!</h3>
+                        <p><strong>URL:</strong> <a href="${data.url}" target="_blank">${data.url}</a></p>
+                        <p><strong>Key:</strong> ${data.key}</p>
+                    `;
+          } else if (data.error) {
+            resultDiv.innerHTML = `
+                        <h3 style="color: red;">❌ Error</h3>
+                        <p>${data.error}</p>
+                    `;
+          } else {
+            resultDiv.innerHTML = `
+                        <h3 style="color: orange;">⚠️ Unexpected Response</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+          }
+        } catch (error) {
+          resultDiv.innerHTML = `
+                    <h3 style="color: red;">❌ Request Failed</h3>
+                    <p>${error.message}</p>
+                `;
+          console.error("Error:", error);
+        }
+      }
+    </script>
+  </body>
+</html>
