@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.send-inquiry-notification]
 verify_jwt = false
+
+[functions.seed-sample-pdf-r2]
+verify_jwt = false

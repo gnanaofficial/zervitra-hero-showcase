@@ -42,15 +42,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("PDF URL is required to send quotation email");
     }
 
-    // Fetch the PDF file
-    console.log("Fetching PDF for attachment...");
-    const pdfResponse = await fetch(pdfUrl);
-    if (!pdfResponse.ok) {
-      throw new Error(`Failed to fetch PDF from URL: ${pdfUrl}`);
-    }
-    const pdfArrayBuffer = await pdfResponse.arrayBuffer();
-    const pdfBuffer = Buffer.from(pdfArrayBuffer);
-
     const today = new Date();
     const formattedDate = today
       .toLocaleDateString("en-GB", {
@@ -61,7 +52,6 @@ const handler = async (req: Request): Promise<Response> => {
       .toUpperCase()
       .replace(/ /g, " ");
 
-    // Simplified HTML Template
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -70,14 +60,20 @@ const handler = async (req: Request): Promise<Response> => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
           body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1a1a1a; margin: 0; padding: 0; background-color: #f5f5f5; }
-          .wrapper { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .container { background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-          .header { background: #0f0f0f; color: white; padding: 30px; text-align: center; }
-          .logo { font-size: 24px; font-weight: 800; letter-spacing: 2px; }
+          .wrapper { max-width: 640px; margin: 0 auto; padding: 20px; }
+          .container { background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.06); }
+          .header { background: #0f0f0f; color: white; padding: 28px 30px; text-align: left; }
+          .logo { font-size: 22px; font-weight: 800; letter-spacing: 2px; }
           .logo span { color: #6366f1; }
-          .content { padding: 40px; text-align: center; }
-          .text { font-size: 16px; color: #555; margin-bottom: 30px; }
-          .footer { background: #fafafa; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee; }
+          .content { padding: 32px 30px; }
+          .title { font-size: 18px; margin: 0 0 12px; }
+          .text { font-size: 14px; color: #4b5563; margin: 0 0 18px; }
+          .card { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 16px; margin: 18px 0; }
+          .row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 13px; color: #111827; }
+          .row strong { color: #111827; }
+          .cta { display: inline-block; background: #111827; color: #ffffff !important; text-decoration: none; padding: 12px 16px; border-radius: 10px; font-weight: 700; font-size: 14px; }
+          .muted { font-size: 12px; color: #6b7280; margin-top: 14px; }
+          .footer { background: #fafafa; padding: 18px 30px; font-size: 12px; color: #6b7280; border-top: 1px solid #eee; }
           .footer a { color: #6366f1; text-decoration: none; }
         </style>
       </head>
@@ -87,19 +83,31 @@ const handler = async (req: Request): Promise<Response> => {
             <div class="header">
               <div class="logo">ZERV<span>I</span>TRA</div>
             </div>
-            
+
             <div class="content">
-              <h2 style="margin-bottom: 20px;">Quotation Included</h2>
+              <h2 class="title">Your quotation is ready</h2>
               <p class="text">
-                Dear ${clientName},<br><br>
-                Please find the attached quotation (ID: <strong>${quotationId}</strong>) dated ${formattedDate}.<br><br>
-                If you have any questions, feel free to reply to this email.
+                Dear ${clientName},<br />
+                Please review the quotation below and download the PDF using the button.
+              </p>
+
+              <div class="card">
+                <div class="row"><span>Quotation ID</span><strong>${quotationId}</strong></div>
+                <div class="row"><span>Date</span><strong>${formattedDate}</strong></div>
+              </div>
+
+              <p style="margin: 22px 0 10px;">
+                <a class="cta" href="${pdfUrl}" target="_blank" rel="noreferrer">Download Quotation PDF</a>
+              </p>
+              <p class="muted">
+                If the button doesn't work, copy and paste this link into your browser:<br />
+                <span>${pdfUrl}</span>
               </p>
             </div>
-            
+
             <div class="footer">
-              <p>
-                <strong>Zervitra</strong> • Digital Solutions & Development<br>
+              <p style="margin: 0;">
+                <strong>Zervitra</strong> • Digital Solutions & Development<br />
                 <a href="https://zervitra.com">www.zervitra.com</a>
               </p>
             </div>
@@ -114,12 +122,6 @@ const handler = async (req: Request): Promise<Response> => {
       to: [to],
       subject: `Quotation ${quotationId} from Zervitra`,
       html: htmlContent,
-      attachments: [
-        {
-          filename: `Quotation_${quotationId}.pdf`,
-          content: pdfBuffer,
-        },
-      ],
     });
 
     console.log("Quotation email sent successfully:", emailResponse);
