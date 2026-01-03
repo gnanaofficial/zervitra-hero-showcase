@@ -482,6 +482,7 @@ const QuotationGenerator = () => {
               fileData: base64Data,
               folder: "quotations",
               clientId: clientDetails.clientId,
+              clientName: clientDetails.name,
             },
           });
 
