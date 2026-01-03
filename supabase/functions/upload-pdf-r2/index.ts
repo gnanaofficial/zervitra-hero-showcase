@@ -15,6 +15,7 @@ interface UploadRequest {
   fileData: string; // Base64 encoded file data (optionally a data URL)
   folder?: string; // Optional folder path (e.g., "quotations" or "invoices")
   clientId?: string; // Optional client ID for organization
+  clientName?: string; // Optional client name for folder structure
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -67,6 +68,7 @@ const handler = async (req: Request): Promise<Response> => {
       fileData,
       folder = "",
       clientId = "",
+      clientName = "",
     }: UploadRequest = body;
 
     console.log(
@@ -78,6 +80,8 @@ const handler = async (req: Request): Promise<Response> => {
       folder,
       "clientId:",
       clientId,
+      "clientName:",
+      clientName,
       "fileData length:",
       fileData?.length || 0
     );
@@ -115,10 +119,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Construct the full key (path) for the file
-    // Structure: folder/clientId/fileName or folder/fileName or just fileName
+    // Structure: ClientName(ClientId)/folder/fileName for organized storage
     let key = fileName;
-    if (clientId && folder) {
-      key = `${folder}/${clientId}/${fileName}`;
+    if (clientName && clientId && folder) {
+      // Clean client name for folder use (remove special chars)
+      const cleanClientName = clientName.replace(/[^a-zA-Z0-9]/g, "");
+      key = `${cleanClientName}(${clientId})/${folder}/${fileName}`;
+    } else if (clientId && folder) {
+      key = `${clientId}/${folder}/${fileName}`;
     } else if (folder) {
       key = `${folder}/${fileName}`;
     }
