@@ -61,15 +61,82 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const body = await req.json();
-    const {
-      fileName,
-      fileType,
-      fileData,
-      folder = "",
-      clientId = "",
-      clientName = "",
-    }: UploadRequest = body;
+    // Accept both JSON (base64) and multipart/form-data uploads
+    const contentType = req.headers.get("content-type") || "";
+
+    let fileName = "";
+    let fileType = "application/pdf";
+    let folder = "";
+    let clientId = "";
+    let clientName = "";
+    let binaryData: Uint8Array;
+
+    if (contentType.includes("multipart/form-data")) {
+      const form = await req.formData();
+
+      fileName = String(form.get("fileName") || "");
+      fileType = String(form.get("fileType") || "application/pdf");
+      folder = String(form.get("folder") || "");
+      clientId = String(form.get("clientId") || "");
+      clientName = String(form.get("clientName") || "");
+
+      const file = form.get("file");
+      if (!(file instanceof File)) {
+        throw new Error("Missing file in multipart form data");
+      }
+      if (!fileName) fileName = file.name;
+      if (!fileType) fileType = file.type || "application/pdf";
+
+      const arrayBuffer = await file.arrayBuffer();
+      binaryData = new Uint8Array(arrayBuffer);
+    } else {
+      const body = await req.json();
+      const json: UploadRequest = body;
+
+      ({
+        fileName,
+        fileType,
+        fileData: undefined as unknown as string, // placeholder for destructure (we use json.fileData)
+        folder = "",
+        clientId = "",
+        clientName = "",
+      } = json);
+
+      const fileData = json.fileData;
+
+      console.log(
+        "Upload request - fileName:",
+        fileName,
+        "fileType:",
+        fileType,
+        "folder:",
+        folder,
+        "clientId:",
+        clientId,
+        "clientName:",
+        clientName,
+        "fileData length:",
+        fileData?.length || 0
+      );
+
+      if (!fileName || !fileData) {
+        throw new Error("fileName and fileData are required");
+      }
+
+      // Decode base64 file data WITHOUT atob() to avoid huge temporary strings (prevents memory limit issues)
+      try {
+        // Accept either raw base64 or a full data URL like "data:application/pdf;base64,..."
+        const cleanedBase64 = fileData.includes(",")
+          ? fileData.split(",")[1]
+          : fileData;
+
+        binaryData = base64Decode(cleanedBase64);
+        console.log("Decoded binary data size:", binaryData.length, "bytes");
+      } catch (decodeError) {
+        console.error("Base64 decode error:", decodeError);
+        throw new Error("Invalid base64 file data");
+      }
+    }
 
     console.log(
       "Upload request - fileName:",
@@ -82,12 +149,12 @@ const handler = async (req: Request): Promise<Response> => {
       clientId,
       "clientName:",
       clientName,
-      "fileData length:",
-      fileData?.length || 0
+      "binary size:",
+      binaryData.length
     );
 
-    if (!fileName || !fileData) {
-      throw new Error("fileName and fileData are required");
+    if (!fileName) {
+      throw new Error("fileName is required");
     }
 
     // Initialize S3 client for R2
@@ -102,21 +169,6 @@ const handler = async (req: Request): Promise<Response> => {
         secretAccessKey,
       },
     });
-
-    // Decode base64 file data WITHOUT atob() to avoid huge temporary strings (prevents memory limit issues)
-    let binaryData: Uint8Array;
-    try {
-      // Accept either raw base64 or a full data URL like "data:application/pdf;base64,..."
-      const cleanedBase64 = fileData.includes(",")
-        ? fileData.split(",")[1]
-        : fileData;
-
-      binaryData = base64Decode(cleanedBase64);
-      console.log("Decoded binary data size:", binaryData.length, "bytes");
-    } catch (decodeError) {
-      console.error("Base64 decode error:", decodeError);
-      throw new Error("Invalid base64 file data");
-    }
 
     // Construct the full key (path) for the file
     // Structure: ClientName(ClientId)/folder/fileName for organized storage

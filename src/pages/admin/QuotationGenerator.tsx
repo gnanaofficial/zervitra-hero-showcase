@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import {
   Plus,
   Trash2,
@@ -114,6 +115,7 @@ const QuotationGenerator = () => {
   const { toast } = useToast();
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [clients, setClients] = useState<DatabaseClient[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
 
@@ -457,64 +459,66 @@ const QuotationGenerator = () => {
           "_"
         )}_${Date.now()}.pdf`;
 
-        // Convert blob to base64 for R2 upload
-        const reader = new FileReader();
-        const base64Promise = new Promise<string>((resolve) => {
-          reader.onloadend = () => {
-            const base64 = (reader.result as string).split(",")[1];
-            resolve(base64);
-          };
-          reader.readAsDataURL(pdfBlob);
-        });
-
-        const base64Data = await base64Promise;
-
-        // Upload to R2 via edge function
-        console.log("Uploading PDF to R2...", {
+        // Upload to R2 via edge function (multipart upload with progress)
+        console.log("Uploading PDF to R2 (multipart)...", {
           fileName,
           clientId: clientDetails.clientId,
         });
-        const { data: uploadData, error: uploadError } =
-          await supabase.functions.invoke("upload-pdf-r2", {
-            body: {
-              fileName,
-              fileType: "application/pdf",
-              fileData: base64Data,
-              folder: "quotations",
-              clientId: clientDetails.clientId,
-              clientName: clientDetails.name,
-            },
-          });
 
-        // Comprehensive logging
-        console.log("=== R2 UPLOAD RESPONSE DEBUG ===");
-        console.log("uploadData:", uploadData);
-        console.log("uploadData type:", typeof uploadData);
-        console.log(
-          "uploadData keys:",
-          uploadData ? Object.keys(uploadData) : "null"
-        );
-        console.log("uploadData.url:", uploadData?.url);
-        console.log("uploadData.success:", uploadData?.success);
-        console.log("uploadData.error:", uploadData?.error);
-        console.log("uploadError:", uploadError);
-        console.log("=== END DEBUG ===");
-
-        if (uploadError) {
-          console.error("R2 upload error:", uploadError);
-          toast({
-            title: "R2 Upload Failed",
-            description: `Error: ${
-              uploadError.message || "Unknown error"
-            }. Check R2 configuration in Supabase secrets.`,
-            variant: "destructive",
-          });
-          throw new Error(
-            `Cloudflare R2 upload failed: ${
-              uploadError.message || "Unknown error"
-            }`
-          );
+        const supabaseUrl = (supabase as any)?.supabaseUrl as string | undefined;
+        if (!supabaseUrl) {
+          throw new Error("Supabase URL not available on client");
         }
+
+        const form = new FormData();
+        form.append("file", pdfBlob, fileName);
+        form.append("fileName", fileName);
+        form.append("fileType", "application/pdf");
+        form.append("folder", "quotations");
+        form.append("clientId", clientDetails.clientId);
+        form.append("clientName", clientDetails.name);
+
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+
+        const uploadData = await new Promise<any>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", `${supabaseUrl}/functions/v1/upload-pdf-r2`, true);
+
+          xhr.setRequestHeader(
+            "apikey",
+            import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+          );
+          if (accessToken) {
+            xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+          }
+
+          xhr.upload.onprogress = (evt) => {
+            if (evt.lengthComputable) {
+              setUploadProgress(Math.round((evt.loaded / evt.total) * 100));
+            } else {
+              setUploadProgress(10);
+            }
+          };
+
+          xhr.onload = () => {
+            try {
+              const json = JSON.parse(xhr.responseText || "{}");
+              if (xhr.status >= 200 && xhr.status < 300) resolve(json);
+              else reject(new Error(json.error || `Upload failed (${xhr.status})`));
+            } catch {
+              reject(new Error(`Upload failed (${xhr.status})`));
+            }
+          };
+
+          xhr.onerror = () => reject(new Error("Network error while uploading"));
+
+          xhr.send(form);
+        });
+
+        setUploadProgress(null);
+
+        console.log("uploadData:", uploadData);
 
         if (uploadData?.url) {
           pdfUrl = uploadData.url;
@@ -524,7 +528,6 @@ const QuotationGenerator = () => {
             description: "PDF saved successfully to R2",
           });
         } else if (uploadData && uploadData.error) {
-          // Edge function returned an error in the response body
           console.error("R2 edge function error:", uploadData.error);
           toast({
             title: "R2 Upload Error",
@@ -714,41 +717,53 @@ const QuotationGenerator = () => {
                   Create and export professional quotations
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="default"
-                  onClick={handleSavePDFToCloud}
-                  disabled={isSavingDraft}
-                  className="gap-2"
-                >
-                  {isSavingDraft ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  Save PDF to Cloud
-                </Button>
-                <Button
-                  onClick={handleSendQuotation}
-                  disabled={isSending || !savedPdfUrl}
-                  className="gap-2"
-                  variant={savedPdfUrl ? "default" : "outline"}
-                >
-                  {isSending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Mail className="h-4 w-4" />
-                  )}
-                  Send Email
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handlePrint}
-                  className="gap-2"
-                >
-                  <Printer className="h-4 w-4" />
-                  Export PDF
-                </Button>
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="default"
+                    onClick={handleSavePDFToCloud}
+                    disabled={isSavingDraft}
+                    className="gap-2"
+                  >
+                    {isSavingDraft ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    Save PDF to Cloud
+                  </Button>
+                  <Button
+                    onClick={handleSendQuotation}
+                    disabled={isSending || !savedPdfUrl}
+                    className="gap-2"
+                    variant={savedPdfUrl ? "default" : "outline"}
+                  >
+                    {isSending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Mail className="h-4 w-4" />
+                    )}
+                    Send Email
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handlePrint}
+                    className="gap-2"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Export PDF
+                  </Button>
+                </div>
+
+                {uploadProgress !== null && (
+                  <div className="w-[260px]">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                      <span>Uploading…</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <Progress value={uploadProgress} />
+                  </div>
+                )}
               </div>
             </motion.div>
 
