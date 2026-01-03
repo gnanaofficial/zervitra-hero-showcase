@@ -346,20 +346,22 @@ const QuotationGenerator = () => {
     try {
       console.log("Starting PDF generation...");
       const canvas = await html2canvas(printRef.current, {
-        scale: 2,
+        scale: 1.5, // Reduced from 2 for smaller file size while maintaining quality
         useCORS: true,
         allowTaint: true,
-        backgroundColor: "#000000", // Dark theme for the quotation
-        logging: true,
+        backgroundColor: "#ffffff", // White background for better compression
+        logging: false,
       });
 
       console.log("Canvas generated, size:", canvas.width, "x", canvas.height);
 
-      const imgData = canvas.toDataURL("image/png");
+      // Use JPEG with compression for much smaller file size
+      const imgData = canvas.toDataURL("image/jpeg", 0.85);
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "mm",
         format: "a4",
+        compress: true,
       });
 
       const imgWidth = 210; // A4 width in mm
@@ -370,13 +372,13 @@ const QuotationGenerator = () => {
       let position = 0;
       const pageHeight = 297; // A4 height in mm
 
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight, undefined, "FAST");
       heightLeft -= pageHeight;
 
       while (heightLeft > 0) {
         position = heightLeft - imgHeight;
         pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight, undefined, "FAST");
         heightLeft -= pageHeight;
       }
 
